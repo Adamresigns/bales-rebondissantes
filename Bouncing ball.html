@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bouncing Ball in a Circle</title>
+  <style>
+    canvas { background: #eee; display: block; margin: 0 auto; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div style="text-align:center;">
+  <label for="speed">Speed:</label>
+  <input type="number" id="speed" value="5" step="0.1" onchange="updateSpeed(this.value);" disabled>
+  <br>
+  <input type="checkbox" id="gravityToggle" checked onchange="toggleGravity(this.checked);">
+  <label for="gravityToggle">Gravity</label>
+  <br>
+  <input type="checkbox" id="elasticityToggle" checked onchange="toggleElasticity(this.checked);">
+  <label for="elasticityToggle">Elasticity</label>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const speedInput = document.getElementById('speed');
+
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+let circle = {
+  x: 0,
+  y: 0,
+  radius: 200
+};
+
+// 3 cercles décoratifs autour
+let extraCircles = [
+  {radius: 250, color: "#bbb"},
+  {radius: 300, color: "#aaa"},
+  {radius: 350, color: "#888"}
+];
+
+let ball = {
+  x: 0,
+  y: 0,
+  radius: 20,
+  dx: parseFloat(speedInput.value),
+  dy: parseFloat(speedInput.value),
+  gravity: 0.1,
+  elasticity: 0.8,
+  useGravity: true,
+  useElasticity: true
+};
+
+function playSound(frequency = 440) {
+  let oscillator = audioContext.createOscillator();
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+  oscillator.connect(audioContext.destination);
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function drawCircle() {
+  const arcLength = 100; // longueur fixe en pixels pour le segment rouge
+
+  // Cercles décoratifs avec segment rouge de longueur fixe
+  for (let c of extraCircles) {
+    let angle = arcLength / c.radius;
+    let startAngle = 0;
+    let endAngle = startAngle + angle;
+    // Segment rouge
+    ctx.beginPath();
+    ctx.arc(circle.x, circle.y, c.radius, startAngle, endAngle, false);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.closePath();
+    // Cercle complet
+    ctx.beginPath();
+    ctx.arc(circle.x, circle.y, c.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = c.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.closePath();
+  }
+  // Cercle principal avec segment rouge de longueur fixe
+  let angle = arcLength / circle.radius;
+  let startAngle = 0;
+  let endAngle = startAngle + angle;
+  ctx.beginPath();
+  ctx.arc(circle.x, circle.y, circle.radius, startAngle, endAngle, false);
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.closePath();
+  // Cercle principal complet
+  ctx.beginPath();
+  ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.closePath();
+}
+
+function drawBall() {
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  ctx.fillStyle = '#0095DD';
+  ctx.fill();
+  ctx.closePath();
+}
+
+function updateBall() {
+  if (ball.useGravity) {
+    ball.dy += ball.gravity;
+  }
+  ball.x += ball.dx;
+  ball.y += ball.dy;
+
+  // Collision with the main circle border
+  let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
+  if (dist + ball.radius > circle.radius) {
+    let nx = ball.x / dist;
+    let ny = ball.y / dist;
+    let dot = ball.dx * nx + ball.dy * ny;
+    ball.dx -= 2 * dot * nx * (ball.useElasticity ? ball.elasticity : 1);
+    ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
+    ball.x = nx * (circle.radius - ball.radius - 0.1);
+    ball.y = ny * (circle.radius - ball.radius - 0.1);
+    playSound(400 + Math.random() * 200);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  drawCircle();
+  drawBall();
+  updateBall();
+  ctx.restore();
+  requestAnimationFrame(draw);
+}
+
+function toggleGravity(checked) {
+  ball.useGravity = checked;
+  checkDisabled();
+}
+
+function toggleElasticity(checked) {
+  ball.useElasticity = checked;
+  checkDisabled();
+}
+
+function checkDisabled() {
+  if (!ball.useGravity && !ball.useElasticity) {
+    speedInput.disabled = false;
+  } else {
+    speedInput.disabled = true;
+    speedInput.value = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy).toFixed(1);
+  }
+}
+
+function updateSpeed(value) {
+  ball.dx = parseFloat(value);
+  ball.dy = parseFloat(value);
+}
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth * 0.9;
+  canvas.height = window.innerHeight * 0.7;
+  circle.x = 0;
+  circle.y = 0;
+  if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
+    let angle = Math.atan2(ball.y, ball.x);
+    ball.x = Math.cos(angle) * (circle.radius - ball.radius - 1);
+    ball.y = Math.sin(angle) * (circle.radius - ball.radius - 1);
+  }
+}
+
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+ball.x = 0;
+ball.y = 0;
+
+draw();
+</script>
+</body>
+</html>

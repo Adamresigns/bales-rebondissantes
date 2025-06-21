@@ -31,14 +31,16 @@ const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 let circle = {
   x: 0,
   y: 0,
-  radius: 200
+  radius: 200,
+  angle: 0,
+  speed: 0.01 // vitesse de rotation du cercle principal
 };
 
-// 3 cercles décoratifs autour
+// 3 cercles décoratifs autour, chacun avec son propre angle et vitesse
 let extraCircles = [
-  {radius: 250, color: "#bbb"},
-  {radius: 300, color: "#aaa"},
-  {radius: 350, color: "#888"}
+  {radius: 250, color: "#bbb", angle: 0, speed: 0.008},
+  {radius: 300, color: "#aaa", angle: 0, speed: -0.006},
+  {radius: 350, color: "#888", angle: 0, speed: 0.004}
 ];
 
 let ball = {
@@ -65,10 +67,10 @@ function playSound(frequency = 440) {
 function drawCircle() {
   const arcLength = 100; // longueur fixe en pixels pour le segment rouge
 
-  // Cercles décoratifs avec segment rouge de longueur fixe
+  // Cercles décoratifs avec segment rouge de longueur fixe et rotation
   for (let c of extraCircles) {
     let angle = arcLength / c.radius;
-    let startAngle = 0;
+    let startAngle = c.angle;
     let endAngle = startAngle + angle;
     // Segment rouge
     ctx.beginPath();
@@ -85,9 +87,9 @@ function drawCircle() {
     ctx.stroke();
     ctx.closePath();
   }
-  // Cercle principal avec segment rouge de longueur fixe
+  // Cercle principal avec segment rouge de longueur fixe et rotation
   let angle = arcLength / circle.radius;
-  let startAngle = 0;
+  let startAngle = circle.angle;
   let endAngle = startAngle + angle;
   ctx.beginPath();
   ctx.arc(circle.x, circle.y, circle.radius, startAngle, endAngle, false);
@@ -141,6 +143,13 @@ function draw() {
   drawBall();
   updateBall();
   ctx.restore();
+
+  // Mise à jour des angles de rotation
+  circle.angle += circle.speed;
+  for (let c of extraCircles) {
+    c.angle += c.speed;
+  }
+
   requestAnimationFrame(draw);
 }
 

@@ -2,177 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Enhanced Bouncing Ball Game</title>
+  <title>Bouncing Ball in a Circle</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-    
-    body {
-      margin: 0;
-      padding: 20px;
-      background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
-      font-family: 'Orbitron', monospace;
-      color: #00d4ff;
-      min-height: 100vh;
-      overflow: hidden;
-    }
-    
-    canvas { 
-      background: radial-gradient(circle at center, #0f0f23 0%, #000 70%);
-      display: block; 
-      margin: 0 auto; 
-      border-radius: 15px;
-      box-shadow: 
-        0 0 50px rgba(0, 212, 255, 0.3),
-        inset 0 0 100px rgba(0, 212, 255, 0.1);
-      border: 2px solid rgba(0, 212, 255, 0.5);
-    }
-    
-    .controls {
-      text-align: center;
-      margin-top: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 20px;
-      border-radius: 15px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(0, 212, 255, 0.3);
-      max-width: 400px;
-      margin: 20px auto;
-    }
-    
-    .control-group {
-      margin: 15px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-    
-    label {
-      font-weight: 700;
-      text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
-      color: #00d4ff;
-    }
-    
-    input[type="number"] {
-      background: rgba(0, 212, 255, 0.1);
-      border: 2px solid rgba(0, 212, 255, 0.5);
-      border-radius: 8px;
-      padding: 8px 12px;
-      color: #00d4ff;
-      font-family: 'Orbitron', monospace;
-      font-weight: 700;
-      transition: all 0.3s ease;
-    }
-    
-    input[type="number"]:focus {
-      outline: none;
-      border-color: #00d4ff;
-      box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
-    }
-    
-    input[type="checkbox"] {
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(0, 212, 255, 0.5);
-      border-radius: 4px;
-      background: rgba(0, 212, 255, 0.1);
-      cursor: pointer;
-      transition: all 0.3s ease;
-      position: relative;
-    }
-    
-    input[type="checkbox"]:checked {
-      background: linear-gradient(45deg, #00d4ff, #0099cc);
-      border-color: #00d4ff;
-      box-shadow: 0 0 15px rgba(0, 212, 255, 0.8);
-    }
-    
-    input[type="checkbox"]:checked::after {
-      content: '✓';
-      position: absolute;
-      color: #000;
-      font-weight: bold;
-      left: 2px;
-      top: -2px;
-      font-size: 14px;
-    }
-    
-    #scoreDisplay {
-      font-size: 2em;
-      margin-top: 20px;
-      font-weight: 900;
-      text-shadow: 0 0 20px rgba(0, 212, 255, 1);
-      background: linear-gradient(45deg, #00d4ff, #0099cc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .title {
-      text-align: center;
-      font-size: 2.5em;
-      font-weight: 900;
-      margin-bottom: 20px;
-      text-shadow: 0 0 30px rgba(0, 212, 255, 1);
-      background: linear-gradient(45deg, #00d4ff, #ff6b6b, #4ecdc4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: glow 2s ease-in-out infinite alternate;
-    }
-    
-    @keyframes glow {
-      from { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.8)); }
-      to { filter: drop-shadow(0 0 30px rgba(255, 107, 107, 0.8)); }
-    }
-    
-    .particles {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: -1;
-    }
+    canvas { background: #eee; display: block; margin: 0 auto; }
   </style>
 </head>
 <body>
-<div class="title">NEON BOUNCE</div>
 <canvas id="canvas"></canvas>
 
-<div class="controls">
-  <div class="control-group">
-    <label for="speed">Speed:</label>
-    <input type="number" id="speed" value="7" step="0.1" onchange="updateSpeed(this.value);" disabled>
-  </div>
-  <div class="control-group">
-    <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
-    <label for="gravityToggle">Gravity</label>
-  </div>
-  <div class="control-group">
-    <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
-    <label for="elasticityToggle">Elasticity</label>
-  </div>
-  <div id="scoreDisplay">Score: 0</div>
+<div style="text-align:center;">
+  <label for="speed">Speed:</label>
+  <input type="number" id="speed" value="7" step="0.1" onchange="updateSpeed(this.value);" disabled>
+  <br>
+  <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
+  <label for="gravityToggle">Gravity</label>
+  <br>
+  <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
+  <label for="elasticityToggle">Elasticity</label>
+  <br>
+  <div id="scoreDisplay" style="font-size:1.5em; margin-top:10px;">Score Ball 1: <span id="score1">0</span> | Score Ball 2: <span id="score2">0</span></div>
 </div>
-
-<canvas class="particles" id="particleCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const particleCanvas = document.getElementById('particleCanvas');
-const particleCtx = particleCanvas.getContext('2d');
 const speedInput = document.getElementById('speed');
-const scoreDisplay = document.getElementById('scoreDisplay');
+const score1Display = document.getElementById('score1');
+const score2Display = document.getElementById('score2');
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-let score = 0;
-let particles = [];
-let trailPoints = [];
+let score1 = 0;
+let score2 = 0;
 
 let circle = {
   x: 0,
@@ -184,13 +45,13 @@ let circle = {
 };
 
 let extraCircles = [
-  {radius: 250, color: "#ff6b6b", angle: 0, speed: 0.008, visible: true},
-  {radius: 300, color: "#4ecdc4", angle: 0, speed: 0.006, visible: true},
-  {radius: 350, color: "#45b7d1", angle: 0, speed: 0.004, visible: true}
+  {radius: 250, color: "#bbb", angle: 0, speed: 0.008, visible: true},
+  {radius: 300, color: "#aaa", angle: 0, speed: 0.006, visible: true},
+  {radius: 350, color: "#888", angle: 0, speed: 0.004, visible: true}
 ];
 
-let ball = {
-  x: 0,
+let ball1 = {
+  x: -40,
   y: 0,
   radius: 20,
   dx: parseFloat(speedInput.value),
@@ -201,91 +62,35 @@ let ball = {
   useElasticity: false
 };
 
-// Particle system
-class Particle {
-  constructor(x, y, color) {
-    this.x = x;
-    this.y = y;
-    this.vx = (Math.random() - 0.5) * 10;
-    this.vy = (Math.random() - 0.5) * 10;
-    this.life = 1.0;
-    this.decay = Math.random() * 0.02 + 0.01;
-    this.color = color;
-    this.size = Math.random() * 4 + 2;
-  }
-  
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vx *= 0.98;
-    this.vy *= 0.98;
-    this.life -= this.decay;
-    this.size *= 0.99;
-  }
-  
-  draw(ctx) {
-    ctx.save();
-    ctx.globalAlpha = this.life;
-    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-    gradient.addColorStop(0, this.color);
-    gradient.addColorStop(1, 'transparent');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
-function createParticles(x, y, color, count = 15) {
-  for (let i = 0; i < count; i++) {
-    particles.push(new Particle(x, y, color));
-  }
-}
-
-function updateParticles() {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    particles[i].update();
-    if (particles[i].life <= 0) {
-      particles.splice(i, 1);
-    }
-  }
-}
-
-function drawParticles() {
-  particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-  particles.forEach(particle => {
-    particle.draw(particleCtx);
-  });
-}
+let ball2 = {
+  x: 40,
+  y: 0,
+  radius: 20,
+  dx: -parseFloat(speedInput.value),
+  dy: -parseFloat(speedInput.value),
+  gravity: 0.1,
+  elasticity: 0.8,
+  useGravity: false,
+  useElasticity: false
+};
 
 function playSound(frequency = 440) {
   let oscillator = audioContext.createOscillator();
-  let gainNode = audioContext.createGain();
-  
   oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  
-  gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+  oscillator.connect(audioContext.destination);
   oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.2);
+  oscillator.stop(audioContext.currentTime + 0.1);
 }
 
 function updateScore() {
-  scoreDisplay.textContent = "Score: " + score;
-  scoreDisplay.style.animation = 'none';
-  setTimeout(() => {
-    scoreDisplay.style.animation = 'glow 0.5s ease-in-out';
-  }, 10);
+  score1Display.textContent = score1;
+  score2Display.textContent = score2;
 }
 
 function isOnRedArc(ballX, ballY, circleObj, arcLength) {
   let dist = Math.sqrt(ballX * ballX + ballY * ballY);
-  if (Math.abs(dist - circleObj.radius) > ball.radius + 2) return false;
+  if (Math.abs(dist - circleObj.radius) > 22) return false;
   let angle = Math.atan2(ballY, ballX);
   if (angle < 0) angle += Math.PI * 2;
   let arcAngle = arcLength / circleObj.radius;
@@ -300,122 +105,52 @@ function isOnRedArc(ballX, ballY, circleObj, arcLength) {
 
 function drawCircle() {
   const arcLength = 100;
-  
-  // Draw outer circles
   for (let c of extraCircles) {
     if (!c.visible) continue;
-    
     let angle = arcLength / c.radius;
     let startAngle = c.angle;
     let endAngle = startAngle + angle;
-    
-    // Draw glowing red arc
-    ctx.save();
-    ctx.shadowColor = '#ff0040';
-    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, c.radius, startAngle, endAngle, false);
-    ctx.strokeStyle = '#ff0040';
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 6;
     ctx.stroke();
-    ctx.restore();
-    
-    // Draw circle with gradient
+    ctx.closePath();
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, c.radius, 0, Math.PI * 2);
-    const gradient = ctx.createLinearGradient(-c.radius, -c.radius, c.radius, c.radius);
-    gradient.addColorStop(0, c.color);
-    gradient.addColorStop(1, 'rgba(255,255,255,0.1)');
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = c.color;
+    ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.closePath();
   }
-  
-  // Draw main circle
   if (circle.visible) {
     let angle = arcLength / circle.radius;
     let startAngle = circle.angle;
     let endAngle = startAngle + angle;
-    
-    // Draw glowing red arc
-    ctx.save();
-    ctx.shadowColor = '#ff0040';
-    ctx.shadowBlur = 25;
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, circle.radius, startAngle, endAngle, false);
-    ctx.strokeStyle = '#ff0040';
-    ctx.lineWidth = 10;
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 6;
     ctx.stroke();
-    ctx.restore();
-    
-    // Draw main circle with gradient
+    ctx.closePath();
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-    const gradient = ctx.createLinearGradient(-circle.radius, -circle.radius, circle.radius, circle.radius);
-    gradient.addColorStop(0, '#00d4ff');
-    gradient.addColorStop(1, 'rgba(255,255,255,0.2)');
-    ctx.strokeStyle = gradient;
+    ctx.strokeStyle = "#333";
     ctx.lineWidth = 4;
     ctx.stroke();
+    ctx.closePath();
   }
 }
 
-function drawBall() {
-  // Add trail point
-  trailPoints.push({x: ball.x, y: ball.y, life: 1.0});
-  if (trailPoints.length > 20) trailPoints.shift();
-  
-  // Draw trail
-  for (let i = 0; i < trailPoints.length; i++) {
-    const point = trailPoints[i];
-    point.life -= 0.05;
-    
-    if (point.life > 0) {
-      ctx.save();
-      ctx.globalAlpha = point.life * 0.5;
-      const size = ball.radius * point.life * 0.8;
-      const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size);
-      gradient.addColorStop(0, '#00d4ff');
-      gradient.addColorStop(1, 'transparent');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-  
-  // Clean up old trail points
-  trailPoints = trailPoints.filter(point => point.life > 0);
-  
-  // Draw main ball with glow
-  ctx.save();
-  ctx.shadowColor = '#00d4ff';
-  ctx.shadowBlur = 30;
-  
-  const ballGradient = ctx.createRadialGradient(
-    ball.x - ball.radius/3, ball.y - ball.radius/3, 0,
-    ball.x, ball.y, ball.radius
-  );
-  ballGradient.addColorStop(0, '#ffffff');
-  ballGradient.addColorStop(0.3, '#00d4ff');
-  ballGradient.addColorStop(1, '#0099cc');
-  
+function drawBall(ball, color) {
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = ballGradient;
+  ctx.fillStyle = color;
   ctx.fill();
-  
-  // Add inner highlight
-  ctx.beginPath();
-  ctx.arc(ball.x - ball.radius/4, ball.y - ball.radius/4, ball.radius/3, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fill();
-  
-  ctx.restore();
+  ctx.closePath();
 }
 
-function updateBall() {
+function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
   const arcLength = 100;
   if (ball.useGravity) {
     ball.dy += ball.gravity;
@@ -429,9 +164,8 @@ function updateBall() {
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, c, arcLength)) {
       c.visible = false;
-      createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, '#ff0040', 20);
-      playSound(700);
-      score++;
+      playSound(soundBase + 300);
+      scoreRef.value++;
       updateScore();
       continue;
     }
@@ -443,8 +177,7 @@ function updateBall() {
       ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
       ball.x = nx * (c.radius - ball.radius - 0.1);
       ball.y = ny * (c.radius - ball.radius - 0.1);
-      createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, c.color, 10);
-      playSound(400 + Math.random() * 200);
+      playSound(soundBase + Math.random() * 200);
       return;
     }
   }
@@ -453,9 +186,8 @@ function updateBall() {
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, circle, arcLength)) {
       circle.visible = false;
-      createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, '#ff0040', 25);
-      playSound(900);
-      score++;
+      playSound(soundBase + 500);
+      scoreRef.value++;
       updateScore();
       return;
     }
@@ -467,9 +199,37 @@ function updateBall() {
       ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
       ball.x = nx * (circle.radius - ball.radius - 0.1);
       ball.y = ny * (circle.radius - ball.radius - 0.1);
-      createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, '#00d4ff', 10);
-      playSound(400 + Math.random() * 200);
+      playSound(soundBase + Math.random() * 200);
       return;
+    }
+  }
+}
+
+// Repulsion between balls
+function repelBalls(b1, b2) {
+  let dx = b2.x - b1.x;
+  let dy = b2.y - b1.y;
+  let dist = Math.sqrt(dx * dx + dy * dy);
+  let minDist = b1.radius + b2.radius;
+  if (dist < minDist && dist > 0) {
+    let overlap = minDist - dist + 0.1;
+    let nx = dx / dist;
+    let ny = dy / dist;
+    // Move balls apart
+    b1.x -= nx * overlap / 2;
+    b1.y -= ny * overlap / 2;
+    b2.x += nx * overlap / 2;
+    b2.y += ny * overlap / 2;
+    // Exchange velocities (elastic collision)
+    let dvx = b2.dx - b1.dx;
+    let dvy = b2.dy - b1.dy;
+    let impact = dvx * nx + dvy * ny;
+    if (impact < 0) {
+      let impulse = 2 * impact / 2;
+      b1.dx += impulse * nx;
+      b1.dy += impulse * ny;
+      b2.dx -= impulse * nx;
+      b2.dy -= impulse * ny;
     }
   }
 }
@@ -479,8 +239,11 @@ function draw() {
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
   drawCircle();
-  drawBall();
-  updateBall();
+  drawBall(ball1, "#0095DD");
+  drawBall(ball2, "#DD9500");
+  updateBall(ball1, extraCircles, circle, {get value(){return score1}, set value(v){score1=v}}, 400);
+  updateBall(ball2, extraCircles, circle, {get value(){return score2}, set value(v){score2=v}}, 600);
+  repelBalls(ball1, ball2);
   ctx.restore();
 
   circle.angle += circle.speed;
@@ -488,59 +251,63 @@ function draw() {
     c.angle += c.speed;
   }
 
-  updateParticles();
-  drawParticles();
-
   requestAnimationFrame(draw);
 }
 
 function toggleGravity(checked) {
-  ball.useGravity = checked;
+  ball1.useGravity = checked;
+  ball2.useGravity = checked;
   checkDisabled();
 }
 
 function toggleElasticity(checked) {
-  ball.useElasticity = checked;
+  ball1.useElasticity = checked;
+  ball2.useElasticity = checked;
   checkDisabled();
 }
 
 function checkDisabled() {
-  if (!ball.useGravity && !ball.useElasticity) {
+  if (!ball1.useGravity && !ball1.useElasticity) {
     speedInput.disabled = false;
   } else {
     speedInput.disabled = true;
-    speedInput.value = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy).toFixed(1);
+    speedInput.value = Math.sqrt(ball1.dx * ball1.dx + ball1.dy * ball1.dy).toFixed(1);
   }
 }
 
 function updateSpeed(value) {
-  ball.dx = parseFloat(value);
-  ball.dy = parseFloat(value);
+  ball1.dx = parseFloat(value);
+  ball1.dy = parseFloat(value);
+  ball2.dx = -parseFloat(value);
+  ball2.dy = -parseFloat(value);
 }
 
 function resizeCanvas() {
   const minSize = 800;
   canvas.width = Math.max(window.innerWidth * 0.9, minSize);
-  canvas.height = Math.max(window.innerHeight * 0.7, minSize);
-  particleCanvas.width = window.innerWidth;
-  particleCanvas.height = window.innerHeight;
-  
+  canvas.height = Math.max(window.innerHeight * 0.9, minSize);
   circle.x = 0;
   circle.y = 0;
-  if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
-    let angle = Math.atan2(ball.y, ball.x);
-    ball.x = Math.cos(angle) * (circle.radius - ball.radius - 1);
-    ball.y = Math.sin(angle) * (circle.radius - ball.radius - 1);
+  // Keep balls inside
+  for (let ball of [ball1, ball2]) {
+    if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
+      let angle = Math.atan2(ball.y, ball.x);
+      ball.x = Math.cos(angle) * (circle.radius - ball.radius - 1);
+      ball.y = Math.sin(angle) * (circle.radius - ball.radius - 1);
+    }
   }
 }
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-ball.x = 0;
-ball.y = 0;
+ball1.x = -40;
+ball1.y = 0;
+ball2.x = 40;
+ball2.y = 0;
 
 updateScore();
+
 draw();
 </script>
 </body>

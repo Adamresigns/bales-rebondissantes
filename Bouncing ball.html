@@ -20,18 +20,20 @@
   <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
   <label for="elasticityToggle">Elasticity</label>
   <br>
-  <div id="scoreDisplay" style="font-size:1.5em; margin-top:10px;">Score: 0</div>
+  <div id="scoreDisplay" style="font-size:1.5em; margin-top:10px;">Score Ball 1: <span id="score1">0</span> | Score Ball 2: <span id="score2">0</span></div>
 </div>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const speedInput = document.getElementById('speed');
-const scoreDisplay = document.getElementById('scoreDisplay');
+const score1Display = document.getElementById('score1');
+const score2Display = document.getElementById('score2');
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-let score = 0;
+let score1 = 0;
+let score2 = 0;
 
 let circle = {
   x: 0,
@@ -48,12 +50,24 @@ let extraCircles = [
   {radius: 350, color: "#888", angle: 0, speed: 0.004, visible: true}
 ];
 
-let ball = {
-  x: 0,
+let ball1 = {
+  x: -40,
   y: 0,
   radius: 20,
   dx: parseFloat(speedInput.value),
   dy: parseFloat(speedInput.value),
+  gravity: 0.1,
+  elasticity: 0.8,
+  useGravity: false,
+  useElasticity: false
+};
+
+let ball2 = {
+  x: 40,
+  y: 0,
+  radius: 20,
+  dx: -parseFloat(speedInput.value),
+  dy: -parseFloat(speedInput.value),
   gravity: 0.1,
   elasticity: 0.8,
   useGravity: false,
@@ -70,12 +84,13 @@ function playSound(frequency = 440) {
 }
 
 function updateScore() {
-  scoreDisplay.textContent = "Score: " + score;
+  score1Display.textContent = score1;
+  score2Display.textContent = score2;
 }
 
 function isOnRedArc(ballX, ballY, circleObj, arcLength) {
   let dist = Math.sqrt(ballX * ballX + ballY * ballY);
-  if (Math.abs(dist - circleObj.radius) > ball.radius + 2) return false;
+  if (Math.abs(dist - circleObj.radius) > 22) return false;
   let angle = Math.atan2(ballY, ballX);
   if (angle < 0) angle += Math.PI * 2;
   let arcAngle = arcLength / circleObj.radius;
@@ -127,15 +142,15 @@ function drawCircle() {
   }
 }
 
-function drawBall() {
+function drawBall(ball, color) {
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = '#0095DD';
+  ctx.fillStyle = color;
   ctx.fill();
   ctx.closePath();
 }
 
-function updateBall() {
+function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
   const arcLength = 100;
   if (ball.useGravity) {
     ball.dy += ball.gravity;
@@ -149,8 +164,8 @@ function updateBall() {
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, c, arcLength)) {
       c.visible = false;
-      playSound(700);
-      score++;
+      playSound(soundBase + 300);
+      scoreRef.value++;
       updateScore();
       continue;
     }
@@ -162,7 +177,7 @@ function updateBall() {
       ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
       ball.x = nx * (c.radius - ball.radius - 0.1);
       ball.y = ny * (c.radius - ball.radius - 0.1);
-      playSound(400 + Math.random() * 200);
+      playSound(soundBase + Math.random() * 200);
       return;
     }
   }
@@ -171,8 +186,8 @@ function updateBall() {
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, circle, arcLength)) {
       circle.visible = false;
-      playSound(900);
-      score++;
+      playSound(soundBase + 500);
+      scoreRef.value++;
       updateScore();
       return;
     }
@@ -184,8 +199,37 @@ function updateBall() {
       ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
       ball.x = nx * (circle.radius - ball.radius - 0.1);
       ball.y = ny * (circle.radius - ball.radius - 0.1);
-      playSound(400 + Math.random() * 200);
+      playSound(soundBase + Math.random() * 200);
       return;
+    }
+  }
+}
+
+// Repulsion between balls
+function repelBalls(b1, b2) {
+  let dx = b2.x - b1.x;
+  let dy = b2.y - b1.y;
+  let dist = Math.sqrt(dx * dx + dy * dy);
+  let minDist = b1.radius + b2.radius;
+  if (dist < minDist && dist > 0) {
+    let overlap = minDist - dist + 0.1;
+    let nx = dx / dist;
+    let ny = dy / dist;
+    // Move balls apart
+    b1.x -= nx * overlap / 2;
+    b1.y -= ny * overlap / 2;
+    b2.x += nx * overlap / 2;
+    b2.y += ny * overlap / 2;
+    // Exchange velocities (elastic collision)
+    let dvx = b2.dx - b1.dx;
+    let dvy = b2.dy - b1.dy;
+    let impact = dvx * nx + dvy * ny;
+    if (impact < 0) {
+      let impulse = 2 * impact / 2;
+      b1.dx += impulse * nx;
+      b1.dy += impulse * ny;
+      b2.dx -= impulse * nx;
+      b2.dy -= impulse * ny;
     }
   }
 }
@@ -195,8 +239,11 @@ function draw() {
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
   drawCircle();
-  drawBall();
-  updateBall();
+  drawBall(ball1, "#0095DD");
+  drawBall(ball2, "#DD9500");
+  updateBall(ball1, extraCircles, circle, {get value(){return score1}, set value(v){score1=v}}, 400);
+  updateBall(ball2, extraCircles, circle, {get value(){return score2}, set value(v){score2=v}}, 600);
+  repelBalls(ball1, ball2);
   ctx.restore();
 
   circle.angle += circle.speed;
@@ -208,27 +255,31 @@ function draw() {
 }
 
 function toggleGravity(checked) {
-  ball.useGravity = checked;
+  ball1.useGravity = checked;
+  ball2.useGravity = checked;
   checkDisabled();
 }
 
 function toggleElasticity(checked) {
-  ball.useElasticity = checked;
+  ball1.useElasticity = checked;
+  ball2.useElasticity = checked;
   checkDisabled();
 }
 
 function checkDisabled() {
-  if (!ball.useGravity && !ball.useElasticity) {
+  if (!ball1.useGravity && !ball1.useElasticity) {
     speedInput.disabled = false;
   } else {
     speedInput.disabled = true;
-    speedInput.value = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy).toFixed(1);
+    speedInput.value = Math.sqrt(ball1.dx * ball1.dx + ball1.dy * ball1.dy).toFixed(1);
   }
 }
 
 function updateSpeed(value) {
-  ball.dx = parseFloat(value);
-  ball.dy = parseFloat(value);
+  ball1.dx = parseFloat(value);
+  ball1.dy = parseFloat(value);
+  ball2.dx = -parseFloat(value);
+  ball2.dy = -parseFloat(value);
 }
 
 function resizeCanvas() {
@@ -237,18 +288,23 @@ function resizeCanvas() {
   canvas.height = Math.max(window.innerHeight * 0.9, minSize);
   circle.x = 0;
   circle.y = 0;
-  if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
-    let angle = Math.atan2(ball.y, ball.x);
-    ball.x = Math.cos(angle) * (circle.radius - ball.radius - 1);
-    ball.y = Math.sin(angle) * (circle.radius - ball.radius - 1);
+  // Keep balls inside
+  for (let ball of [ball1, ball2]) {
+    if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
+      let angle = Math.atan2(ball.y, ball.x);
+      ball.x = Math.cos(angle) * (circle.radius - ball.radius - 1);
+      ball.y = Math.sin(angle) * (circle.radius - ball.radius - 1);
+    }
   }
 }
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-ball.x = 0;
-ball.y = 0;
+ball1.x = -40;
+ball1.y = 0;
+ball2.x = 40;
+ball2.y = 0;
 
 updateScore();
 

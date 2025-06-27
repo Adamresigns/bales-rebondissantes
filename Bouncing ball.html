@@ -4,7 +4,40 @@
   <meta charset="UTF-8">
   <title>Bouncing Ball in a Circle</title>
   <style>
-    canvas { background: #eee; display: block; margin: 0 auto; }
+    body {
+      background: #070a13;
+    }
+    canvas {
+      background: linear-gradient(135deg, #0ff 0%, #111 100%);
+      display: block;
+      margin: 0 auto;
+      box-shadow: 0 0 60px #0ff, 0 0 120px #00f;
+      border-radius: 20px;
+    }
+    #scoreDisplay, label, input {
+      color: #fff;
+      text-shadow: 0 0 8px #0ff, 0 0 4px #fff;
+      font-weight: bold;
+    }
+    #scoreDisplay {
+      font-size: 1.7em;
+      margin-top: 10px;
+      letter-spacing: 1px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 10px;
+      padding: 6px 18px;
+      display: inline-block;
+      box-shadow: 0 0 10px #0ff;
+    }
+    input[type="number"] {
+      background: #222;
+      color: #0ff;
+      border: 1px solid #0ff;
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 1em;
+      box-shadow: 0 0 6px #0ff inset;
+    }
   </style>
 </head>
 <body>
@@ -20,7 +53,7 @@
   <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
   <label for="elasticityToggle">Elasticity</label>
   <br>
-  <div id="scoreDisplay" style="font-size:1.5em; margin-top:10px;">Score Ball 1: <span id="score1">0</span> | Score Ball 2: <span id="score2">0</span></div>
+  <div id="scoreDisplay">Score Ball 1: <span id="score1">0</span> | Score Ball 2: <span id="score2">0</span></div>
 </div>
 
 <script>
@@ -44,15 +77,28 @@ let circle = {
   visible: true
 };
 
+// 6 neon circles with different neon colors
 let extraCircles = [
-  {radius: 250, color: "#bbb", angle: 0, speed: 0.008, visible: true},
-  {radius: 300, color: "#aaa", angle: 0, speed: 0.006, visible: true},
-  {radius: 350, color: "#888", angle: 0, speed: 0.004, visible: true}
+  {radius: 230, color: "#0ff", glow: "#0ff", angle: 0, speed: 0.008, visible: true},
+  {radius: 260, color: "#f0f", glow: "#f0f", angle: 0, speed: 0.007, visible: true},
+  {radius: 290, color: "#ff0", glow: "#ff0", angle: 0, speed: 0.006, visible: true},
+  {radius: 320, color: "#0f0", glow: "#0f0", angle: 0, speed: 0.005, visible: true},
+  {radius: 350, color: "#0ff", glow: "#0ff", angle: 0, speed: 0.004, visible: true},
+  {radius: 380, color: "#f0f", glow: "#f0f", angle: 0, speed: 0.003, visible: true}
 ];
 
+function randomBallPosition(radius, ballRadius) {
+  // Place randomly inside the main circle, not too close to the edge
+  let r = Math.random() * (radius - ballRadius - 10);
+  let theta = Math.random() * Math.PI * 2;
+  return {
+    x: Math.cos(theta) * r,
+    y: Math.sin(theta) * r
+  };
+}
+
 let ball1 = {
-  x: -40,
-  y: 0,
+  ...randomBallPosition(circle.radius, 20),
   radius: 20,
   dx: parseFloat(speedInput.value),
   dy: parseFloat(speedInput.value),
@@ -62,17 +108,20 @@ let ball1 = {
   useElasticity: false
 };
 
-let ball2 = {
-  x: 40,
-  y: 0,
-  radius: 20,
-  dx: -parseFloat(speedInput.value),
-  dy: -parseFloat(speedInput.value),
-  gravity: 0.1,
-  elasticity: 0.8,
-  useGravity: false,
-  useElasticity: false
-};
+let ball2;
+do {
+  ball2 = {
+    ...randomBallPosition(circle.radius, 20),
+    radius: 20,
+    dx: -parseFloat(speedInput.value),
+    dy: -parseFloat(speedInput.value),
+    gravity: 0.1,
+    elasticity: 0.8,
+    useGravity: false,
+    useElasticity: false
+  };
+  // Make sure balls don't overlap at start
+} while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < 40);
 
 function playSound(frequency = 440) {
   let oscillator = audioContext.createOscillator();
@@ -103,6 +152,7 @@ function isOnRedArc(ballX, ballY, circleObj, arcLength) {
   }
 }
 
+// Draw circles with the "red" (now invisible) arc missing, with neon glow
 function drawCircle() {
   const arcLength = 100;
   for (let c of extraCircles) {
@@ -110,44 +160,46 @@ function drawCircle() {
     let angle = arcLength / c.radius;
     let startAngle = c.angle;
     let endAngle = startAngle + angle;
+    // Neon glow for circles
+    ctx.save();
+    ctx.shadowColor = c.glow;
+    ctx.shadowBlur = 30;
     ctx.beginPath();
-    ctx.arc(circle.x, circle.y, c.radius, startAngle, endAngle, false);
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 6;
-    ctx.stroke();
-    ctx.closePath();
-    ctx.beginPath();
-    ctx.arc(circle.x, circle.y, c.radius, 0, Math.PI * 2);
+    ctx.arc(circle.x, circle.y, c.radius, endAngle, startAngle + 2 * Math.PI, false);
     ctx.strokeStyle = c.color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 4;
     ctx.stroke();
     ctx.closePath();
+    ctx.restore();
   }
   if (circle.visible) {
     let angle = arcLength / circle.radius;
     let startAngle = circle.angle;
     let endAngle = startAngle + angle;
+    ctx.save();
+    ctx.shadowColor = "#0ff";
+    ctx.shadowBlur = 40;
     ctx.beginPath();
-    ctx.arc(circle.x, circle.y, circle.radius, startAngle, endAngle, false);
-    ctx.strokeStyle = "red";
+    ctx.arc(circle.x, circle.y, circle.radius, endAngle, startAngle + 2 * Math.PI, false);
+    ctx.strokeStyle = "#0ff";
     ctx.lineWidth = 6;
     ctx.stroke();
     ctx.closePath();
-    ctx.beginPath();
-    ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.closePath();
+    ctx.restore();
   }
 }
 
-function drawBall(ball, color) {
+function drawBall(ball, color, glow) {
+  ctx.save();
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 40;
   ctx.fillStyle = color;
   ctx.fill();
+  ctx.shadowBlur = 0;
   ctx.closePath();
+  ctx.restore();
 }
 
 function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
@@ -205,7 +257,6 @@ function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
   }
 }
 
-// Repulsion between balls
 function repelBalls(b1, b2) {
   let dx = b2.x - b1.x;
   let dy = b2.y - b1.y;
@@ -215,12 +266,10 @@ function repelBalls(b1, b2) {
     let overlap = minDist - dist + 0.1;
     let nx = dx / dist;
     let ny = dy / dist;
-    // Move balls apart
     b1.x -= nx * overlap / 2;
     b1.y -= ny * overlap / 2;
     b2.x += nx * overlap / 2;
     b2.y += ny * overlap / 2;
-    // Exchange velocities (elastic collision)
     let dvx = b2.dx - b1.dx;
     let dvy = b2.dy - b1.dy;
     let impact = dvx * nx + dvy * ny;
@@ -239,8 +288,8 @@ function draw() {
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
   drawCircle();
-  drawBall(ball1, "#0095DD");
-  drawBall(ball2, "#DD9500");
+  drawBall(ball1, "#00f6ff", "#00f6ff"); // Neon blue
+  drawBall(ball2, "#ff0066", "#ff0066"); // Neon red
   updateBall(ball1, extraCircles, circle, {get value(){return score1}, set value(v){score1=v}}, 400);
   updateBall(ball2, extraCircles, circle, {get value(){return score2}, set value(v){score2=v}}, 600);
   repelBalls(ball1, ball2);
@@ -283,12 +332,11 @@ function updateSpeed(value) {
 }
 
 function resizeCanvas() {
-  const minSize = 800;
+  const minSize = 900;
   canvas.width = Math.max(window.innerWidth * 0.9, minSize);
   canvas.height = Math.max(window.innerHeight * 0.9, minSize);
   circle.x = 0;
   circle.y = 0;
-  // Keep balls inside
   for (let ball of [ball1, ball2]) {
     if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
       let angle = Math.atan2(ball.y, ball.x);
@@ -300,11 +348,6 @@ function resizeCanvas() {
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-
-ball1.x = -40;
-ball1.y = 0;
-ball2.x = 40;
-ball2.y = 0;
 
 updateScore();
 

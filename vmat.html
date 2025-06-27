@@ -83,6 +83,51 @@
       top: -2px;
       font-size: 14px;
     }
+
+    /* --- NEW: STYLES FOR SPEED SLIDER --- */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 50%;
+      height: 8px;
+      background: rgba(0, 212, 255, 0.2);
+      border-radius: 5px;
+      border: 1px solid rgba(0, 212, 255, 0.4);
+      outline: none;
+      opacity: 0.7;
+      transition: opacity .2s;
+    }
+
+    input[type="range"]:hover {
+      opacity: 1;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #00d4ff;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00d4ff;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #00d4ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 15px #00d4ff;
+    }
+    #speedValueDisplay {
+        font-weight: 700;
+        color: #fff;
+        min-width: 30px;
+        text-align: left;
+    }
     
     #scoreDisplay {
       font-size: 2em;
@@ -143,10 +188,10 @@
 
     .size-bar-fill {
         height: 100%;
-        width: 0%; /* Initial width */
+        width: 0%; 
         background: linear-gradient(90deg, #00d4ff, #0099cc);
         border-radius: 6px;
-        transition: width 0.3s ease-out; /* Smooth animation */
+        transition: width 0.3s ease-out; 
         box-shadow: 0 0 10px rgba(0, 212, 255, 0.7);
     }
     
@@ -196,6 +241,13 @@
     <label for="elasticityToggle">Boost Bounces</label>
   </div>
 
+  <!-- --- NEW: SPEED SLIDER CONTROL --- -->
+  <div class="control-group">
+      <label for="speedSlider">Speed:</label>
+      <input type="range" id="speedSlider" min="1" max="12" value="5" step="0.5" oninput="updateBallSpeed(this.value)">
+      <span id="speedValueDisplay">5.0</span>
+  </div>
+
   <div class="size-indicator-container">
     <label for="sizeBarFill">Avg. Ball Size</label>
     <div class="size-bar">
@@ -221,10 +273,8 @@ const sizeBarFill = document.getElementById('sizeBarFill');
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 // --- MELODY CONFIGURATION ---
-const BASE_FREQUENCY = 261.63; // C4 note
-// Ratios for a Major Pentatonic Scale (Root, 2nd, 3rd, 5th, 6th)
+const BASE_FREQUENCY = 261.63; 
 const PENTATONIC_RATIOS = [1, 9/8, 5/4, 3/2, 5/3];
-// Create a two-octave scale for more variety
 const MELODY_SCALE = [
     ...PENTATONIC_RATIOS.map(ratio => BASE_FREQUENCY * ratio),
     ...PENTATONIC_RATIOS.map(ratio => BASE_FREQUENCY * 2 * ratio)
@@ -237,7 +287,7 @@ const NUM_CIRCLES = 12;
 const INITIAL_BALL_RADIUS = 15;
 const MAX_BALL_RADIUS = 35;
 const BALL_GROWTH_AMOUNT = 0.5;
-const INITIAL_SPEED = 5;
+let currentInitialSpeed = 5; // --- UPDATED: Use a changeable variable for speed
 const BOUNCE_BOOST_FACTOR = 1.02; 
 const MAX_BALL_SPEED = 15;
 
@@ -253,8 +303,9 @@ function addNewBall() {
     const angle = Math.random() * Math.PI * 2;
     const newBall = {
         id: newId, x: 0, y: 0, radius: INITIAL_BALL_RADIUS,
-        dx: Math.cos(angle) * (INITIAL_SPEED + Math.random() - 0.5),
-        dy: Math.sin(angle) * (INITIAL_SPEED + Math.random() - 0.5),
+        // --- UPDATED: Use the current slider value for speed ---
+        dx: Math.cos(angle) * (currentInitialSpeed + Math.random() - 0.5),
+        dy: Math.sin(angle) * (currentInitialSpeed + Math.random() - 0.5),
         gravity: 0.1, useGravity: document.getElementById('gravityToggle').checked,
         useElasticity: document.getElementById('elasticityToggle').checked,
         trailPoints: [], color: BALL_COLORS[newId % BALL_COLORS.length]
@@ -286,14 +337,9 @@ function initializeGame() {
   updateAverageBallSizeIndicator();
 }
 
-// --- Particle System ---
+// --- Particle System (condensed for brevity) ---
 class Particle {
-  constructor(x, y, color) {
-    this.x = x; this.y = y;
-    this.vx = (Math.random() - 0.5) * 10; this.vy = (Math.random() - 0.5) * 10;
-    this.life = 1.0; this.decay = Math.random() * 0.02 + 0.01;
-    this.color = color; this.size = Math.random() * 4 + 2;
-  }
+  constructor(x, y, color) { this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * 10; this.vy = (Math.random() - 0.5) * 10; this.life = 1.0; this.decay = Math.random() * 0.02 + 0.01; this.color = color; this.size = Math.random() * 4 + 2; }
   update() { this.x += this.vx; this.y += this.vy; this.vx *= 0.98; this.vy *= 0.98; this.life -= this.decay; this.size *= 0.99; }
   draw(ctx) { ctx.save(); ctx.globalAlpha = this.life; const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size); gradient.addColorStop(0, this.color); gradient.addColorStop(1, 'transparent'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 }
@@ -301,22 +347,12 @@ function createParticles(x, y, color, count = 15) { for (let i = 0; i < count; i
 function updateParticles() { for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); if (particles[i].life <= 0) { particles.splice(i, 1); } } }
 function drawParticles() { particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height); particles.forEach(particle => particle.draw(particleCtx)); }
 
-// --- Audio and UI ---
+// --- Audio and UI (condensed for brevity) ---
 function playSound(frequency = 440, volume = 0.1) {
-  if (!audioContext) return;
-  let oscillator = audioContext.createOscillator();
-  let gainNode = audioContext.createGain();
-  
-  oscillator.type = 'triangle'; // Changed for a richer, synth-like tone
-  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  
-  gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4); // Longer decay
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.4); // Match longer decay
+  if (!audioContext) return; let oscillator = audioContext.createOscillator(); let gainNode = audioContext.createGain();
+  oscillator.type = 'triangle'; oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+  gainNode.gain.setValueAtTime(volume, audioContext.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+  oscillator.connect(gainNode); gainNode.connect(audioContext.destination); oscillator.start(); oscillator.stop(audioContext.currentTime + 0.4);
 }
 function updateScore() { scoreDisplay.textContent = "Score: " + score; scoreDisplay.style.animation = 'none'; setTimeout(() => { scoreDisplay.style.animation = 'glow 0.5s ease-in-out'; }, 10); }
 function updateAverageBallSizeIndicator() {
@@ -327,8 +363,7 @@ function updateAverageBallSizeIndicator() {
     sizeBarFill.style.width = fillPercentage + '%';
 }
 function createBallSizeUI() {
-    const container = document.getElementById('ballSizeContainer');
-    container.innerHTML = ''; 
+    const container = document.getElementById('ballSizeContainer'); container.innerHTML = ''; 
     balls.forEach(ball => {
         const infoDiv = document.createElement('div'); infoDiv.className = 'ball-size-info';
         const colorIndicator = document.createElement('span'); colorIndicator.className = 'ball-color-indicator'; colorIndicator.style.backgroundColor = ball.color;
@@ -336,12 +371,7 @@ function createBallSizeUI() {
         infoDiv.appendChild(colorIndicator); infoDiv.appendChild(sizeText); container.appendChild(infoDiv);
     });
 }
-function updateBallSizeCounters() {
-    balls.forEach(ball => {
-        const sizeTextElement = document.getElementById(`ball-size-${ball.id}`);
-        if (sizeTextElement) { sizeTextElement.textContent = `Size: ${ball.radius.toFixed(1)}`; }
-    });
-}
+function updateBallSizeCounters() { balls.forEach(ball => { const sizeTextElement = document.getElementById(`ball-size-${ball.id}`); if (sizeTextElement) { sizeTextElement.textContent = `Size: ${ball.radius.toFixed(1)}`; } }); }
 function darkenColor(hex, percent) {
     hex = hex.replace(/^#/, ''); let r = parseInt(hex.substring(0, 2), 16); let g = parseInt(hex.substring(2, 4), 16); let b = parseInt(hex.substring(4, 6), 16);
     r = parseInt(r * (100 - percent) / 100); g = parseInt(g * (100 - percent) / 100); b = parseInt(b * (100 - percent) / 100);
@@ -350,22 +380,19 @@ function darkenColor(hex, percent) {
     return `#${rr}${gg}${bb}`;
 }
 
-// --- Collision & Drawing ---
+// --- Collision & Drawing (condensed for brevity) ---
 function isOnGap(ball, circleObj, arcLength) {
-  let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
-  if (Math.abs(dist - circleObj.radius) > ball.radius + 2) return false;
+  let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y); if (Math.abs(dist - circleObj.radius) > ball.radius + 2) return false;
   let ballAngle = (Math.atan2(ball.y, ball.x) + Math.PI * 2) % (Math.PI * 2);
   let gapAngle = arcLength / circleObj.radius; let startAngle = (circleObj.angle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
   let endAngle = (startAngle + gapAngle);
-  if (endAngle >= Math.PI * 2) { return ballAngle >= startAngle || ballAngle <= endAngle % (Math.PI * 2); } 
-  else { return ballAngle >= startAngle && ballAngle <= endAngle; }
+  if (endAngle >= Math.PI * 2) { return ballAngle >= startAngle || ballAngle <= endAngle % (Math.PI * 2); } else { return ballAngle >= startAngle && ballAngle <= endAngle; }
 }
 function drawCircles() {
   const arcLength = 100;
   for (let c of circles) {
     if (!c.visible) continue;
-    ctx.strokeStyle = c.color; ctx.lineWidth = 5;
-    const gapAngle = arcLength / c.radius;
+    ctx.strokeStyle = c.color; ctx.lineWidth = 5; const gapAngle = arcLength / c.radius;
     ctx.beginPath(); ctx.arc(0, 0, c.radius, c.angle + gapAngle, c.angle + Math.PI * 2, false); ctx.stroke();
   }
 }
@@ -395,20 +422,11 @@ function updateBall(ball) {
   ball.x += ball.dx; ball.y += ball.dy;
 
   for (let c of circles) {
-    if (!c.visible) continue;
-    let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
+    if (!c.visible) continue; let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnGap(ball, c, arcLength)) {
-      c.visible = false;
-      createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, c.color, 25);
-      playSound(800, 0.2); // Score sound
-      score++;
-      updateScore();
-      addNewBall();
-      if (circles.every(circ => !circ.visible)) {
-        level++;
-        playSound(1200, 0.3);
-        setTimeout(initializeGame, 1000);
-      }
+      c.visible = false; createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, c.color, 25);
+      playSound(800, 0.2); score++; updateScore(); addNewBall();
+      if (circles.every(circ => !circ.visible)) { level++; playSound(1200, 0.3); setTimeout(initializeGame, 1000); }
       continue;
     }
     if (dist > c.radius - ball.radius && dist < c.radius + ball.radius) {
@@ -421,41 +439,37 @@ function updateBall(ball) {
             if (currentSpeed > MAX_BALL_SPEED) { const scale = MAX_BALL_SPEED / currentSpeed; ball.dx *= scale; ball.dy *= scale; }
             ball.radius = Math.min(ball.radius + BALL_GROWTH_AMOUNT, MAX_BALL_RADIUS);
             createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, c.color, 8);
-            
-            // --- PLAY MELODY NOTE ON BOUNCE ---
-            const noteFrequency = MELODY_SCALE[melodyNoteIndex];
-            playSound(noteFrequency, 0.08); // Quieter volume for bounce
-            melodyNoteIndex = (melodyNoteIndex + 1) % MELODY_SCALE.length; // Cycle to the next note
+            const noteFrequency = MELODY_SCALE[melodyNoteIndex]; playSound(noteFrequency, 0.08); 
+            melodyNoteIndex = (melodyNoteIndex + 1) % MELODY_SCALE.length;
         }
     }
   }
 }
-
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
-  balls.forEach(ball => updateBall(ball));
-  drawCircles();
-  balls.forEach(ball => drawBall(ball));
-  ctx.restore();
+  balls.forEach(ball => updateBall(ball)); drawCircles();
+  balls.forEach(ball => drawBall(ball)); ctx.restore();
   circles.forEach(c => c.angle += c.speed);
-  updateParticles();
-  drawParticles();
-  updateAverageBallSizeIndicator();
-  updateBallSizeCounters();
+  updateParticles(); drawParticles(); updateAverageBallSizeIndicator(); updateBallSizeCounters();
   requestAnimationFrame(draw);
 }
 
 // --- Controls and Event Listeners ---
 function toggleGravity(checked) { balls.forEach(ball => ball.useGravity = checked); }
 function toggleElasticity(checked) { balls.forEach(ball => ball.useElasticity = checked); }
+
+// --- NEW: Function to handle speed slider changes ---
+function updateBallSpeed(newValue) {
+    currentInitialSpeed = parseFloat(newValue);
+    document.getElementById('speedValueDisplay').textContent = currentInitialSpeed.toFixed(1);
+}
+
 function resizeCanvas() {
   const size = Math.min(window.innerWidth * 0.95, window.innerHeight * 0.9, 900);
   canvas.width = size; canvas.height = size;
   particleCanvas.width = window.innerWidth; particleCanvas.height = window.innerHeight;
-  score = 0; level = 1;
-  melodyNoteIndex = 0; // Reset melody on restart
+  score = 0; level = 1; melodyNoteIndex = 0;
   initializeGame();
 }
 window.addEventListener('resize', resizeCanvas);

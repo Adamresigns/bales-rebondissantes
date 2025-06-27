@@ -12,21 +12,26 @@
 
 <div style="text-align:center;">
   <label for="speed">Speed:</label>
-  <input type="number" id="speed" value="5" step="0.1" onchange="updateSpeed(this.value);" disabled>
+  <input type="number" id="speed" value="7" step="0.1" onchange="updateSpeed(this.value);" disabled>
   <br>
-  <input type="checkbox" id="gravityToggle" checked onchange="toggleGravity(this.checked);">
+  <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
   <label for="gravityToggle">Gravity</label>
   <br>
-  <input type="checkbox" id="elasticityToggle" checked onchange="toggleElasticity(this.checked);">
+  <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
   <label for="elasticityToggle">Elasticity</label>
+  <br>
+  <div id="scoreDisplay" style="font-size:1.5em; margin-top:10px;">Score: 0</div>
 </div>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const speedInput = document.getElementById('speed');
+const scoreDisplay = document.getElementById('scoreDisplay');
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+let score = 0;
 
 let circle = {
   x: 0,
@@ -39,7 +44,7 @@ let circle = {
 
 let extraCircles = [
   {radius: 250, color: "#bbb", angle: 0, speed: 0.008, visible: true},
-  {radius: 300, color: "#aaa", angle: 0, speed: -0.006, visible: true},
+  {radius: 300, color: "#aaa", angle: 0, speed: 0.006, visible: true},
   {radius: 350, color: "#888", angle: 0, speed: 0.004, visible: true}
 ];
 
@@ -51,8 +56,8 @@ let ball = {
   dy: parseFloat(speedInput.value),
   gravity: 0.1,
   elasticity: 0.8,
-  useGravity: true,
-  useElasticity: true
+  useGravity: false,
+  useElasticity: false
 };
 
 function playSound(frequency = 440) {
@@ -62,6 +67,10 @@ function playSound(frequency = 440) {
   oscillator.connect(audioContext.destination);
   oscillator.start();
   oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function updateScore() {
+  scoreDisplay.textContent = "Score: " + score;
 }
 
 function isOnRedArc(ballX, ballY, circleObj, arcLength) {
@@ -80,22 +89,18 @@ function isOnRedArc(ballX, ballY, circleObj, arcLength) {
 }
 
 function drawCircle() {
-  const arcLength = 100; // longueur fixe en pixels pour le segment rouge
-
-  // Cercles décoratifs avec segment rouge de longueur fixe et rotation
+  const arcLength = 100;
   for (let c of extraCircles) {
     if (!c.visible) continue;
     let angle = arcLength / c.radius;
     let startAngle = c.angle;
     let endAngle = startAngle + angle;
-    // Segment rouge
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, c.radius, startAngle, endAngle, false);
     ctx.strokeStyle = "red";
     ctx.lineWidth = 6;
     ctx.stroke();
     ctx.closePath();
-    // Cercle complet
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, c.radius, 0, Math.PI * 2);
     ctx.strokeStyle = c.color;
@@ -103,7 +108,6 @@ function drawCircle() {
     ctx.stroke();
     ctx.closePath();
   }
-  // Cercle principal avec segment rouge de longueur fixe et rotation
   if (circle.visible) {
     let angle = arcLength / circle.radius;
     let startAngle = circle.angle;
@@ -114,7 +118,6 @@ function drawCircle() {
     ctx.lineWidth = 6;
     ctx.stroke();
     ctx.closePath();
-    // Cercle principal complet
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
     ctx.strokeStyle = "#333";
@@ -140,19 +143,17 @@ function updateBall() {
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  // Vérifie d'abord les cercles décoratifs (du plus grand au plus petit)
   for (let i = extraCircles.length - 1; i >= 0; i--) {
     let c = extraCircles[i];
     if (!c.visible) continue;
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
-    // Si la balle touche la partie rouge, le cercle disparaît et la balle traverse
     if (isOnRedArc(ball.x, ball.y, c, arcLength)) {
       c.visible = false;
       playSound(700);
-      // continue pour permettre de traverser plusieurs cercles rouges d'affilée
+      score++;
+      updateScore();
       continue;
     }
-    // Sinon, rebond normal si la balle touche le cercle
     if (Math.abs(dist - c.radius) < ball.radius + 2) {
       let nx = ball.x / dist;
       let ny = ball.y / dist;
@@ -166,13 +167,13 @@ function updateBall() {
     }
   }
 
-  // Cercle principal
   if (circle.visible) {
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, circle, arcLength)) {
       circle.visible = false;
       playSound(900);
-      // continue pour permettre de traverser plusieurs cercles rouges d'affilée
+      score++;
+      updateScore();
       return;
     }
     if (dist + ball.radius > circle.radius) {
@@ -198,7 +199,6 @@ function draw() {
   updateBall();
   ctx.restore();
 
-  // Mise à jour des angles de rotation
   circle.angle += circle.speed;
   for (let c of extraCircles) {
     c.angle += c.speed;
@@ -232,8 +232,9 @@ function updateSpeed(value) {
 }
 
 function resizeCanvas() {
-  canvas.width = window.innerWidth * 0.9;
-  canvas.height = window.innerHeight * 0.7;
+  const minSize = 800;
+  canvas.width = Math.max(window.innerWidth * 0.9, minSize);
+  canvas.height = Math.max(window.innerHeight * 0.9, minSize);
   circle.x = 0;
   circle.y = 0;
   if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
@@ -248,6 +249,8 @@ window.addEventListener('resize', resizeCanvas);
 
 ball.x = 0;
 ball.y = 0;
+
+updateScore();
 
 draw();
 </script>

@@ -149,6 +149,37 @@
         transition: width 0.3s ease-out; /* Smooth animation */
         box-shadow: 0 0 10px rgba(0, 212, 255, 0.7);
     }
+    
+    #ballSizeContainer {
+        margin-top: 15px;
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap; 
+    }
+    
+    .ball-size-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.4);
+        padding: 5px 10px;
+        border-radius: 8px;
+    }
+    
+    .ball-color-indicator {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    }
+    
+    .ball-size-text {
+        font-size: 0.9em;
+        color: #fff;
+        font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -171,6 +202,8 @@
         <div class="size-bar-fill" id="sizeBarFill"></div>
     </div>
   </div>
+  
+  <div id="ballSizeContainer"></div>
 
   <div id="scoreDisplay">Score: 0</div>
 </div>
@@ -187,15 +220,26 @@ const sizeBarFill = document.getElementById('sizeBarFill');
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
+// --- MELODY CONFIGURATION ---
+const BASE_FREQUENCY = 261.63; // C4 note
+// Ratios for a Major Pentatonic Scale (Root, 2nd, 3rd, 5th, 6th)
+const PENTATONIC_RATIOS = [1, 9/8, 5/4, 3/2, 5/3];
+// Create a two-octave scale for more variety
+const MELODY_SCALE = [
+    ...PENTATONIC_RATIOS.map(ratio => BASE_FREQUENCY * ratio),
+    ...PENTATONIC_RATIOS.map(ratio => BASE_FREQUENCY * 2 * ratio)
+];
+let melodyNoteIndex = 0;
+
 // --- Game Configuration ---
-const NUM_BALLS = 3;
-const NUM_CIRCLES = 8;
+const BALL_COLORS = ["#ff6b6b", "#4ecdc4", "#feca57", "#a29bfe", "#e056fd", "#7ed6df", "#ff7979", "#badc58"];
+const NUM_CIRCLES = 12;
 const INITIAL_BALL_RADIUS = 15;
 const MAX_BALL_RADIUS = 35;
 const BALL_GROWTH_AMOUNT = 0.5;
 const INITIAL_SPEED = 5;
-const BOUNCE_BOOST_FACTOR = 1.02; // Adds 2% speed on boosted bounces
-const MAX_BALL_SPEED = 15; // Set a maximum speed for the balls
+const BOUNCE_BOOST_FACTOR = 1.02; 
+const MAX_BALL_SPEED = 15;
 
 let score = 0;
 let level = 1;
@@ -203,29 +247,30 @@ let particles = [];
 let balls = [];
 let circles = [];
 
-// --- Game Initialization ---
+// --- Game Logic Functions ---
+function addNewBall() {
+    const newId = balls.length;
+    const angle = Math.random() * Math.PI * 2;
+    const newBall = {
+        id: newId, x: 0, y: 0, radius: INITIAL_BALL_RADIUS,
+        dx: Math.cos(angle) * (INITIAL_SPEED + Math.random() - 0.5),
+        dy: Math.sin(angle) * (INITIAL_SPEED + Math.random() - 0.5),
+        gravity: 0.1, useGravity: document.getElementById('gravityToggle').checked,
+        useElasticity: document.getElementById('elasticityToggle').checked,
+        trailPoints: [], color: BALL_COLORS[newId % BALL_COLORS.length]
+    };
+    balls.push(newBall);
+    createBallSizeUI(); 
+}
+
 function initializeGame() {
   balls = [];
   circles = [];
-
-  for (let i = 0; i < NUM_BALLS; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    balls.push({
-      x: 0,
-      y: 0,
-      radius: INITIAL_BALL_RADIUS,
-      dx: Math.cos(angle) * (INITIAL_SPEED + Math.random() - 0.5),
-      dy: Math.sin(angle) * (INITIAL_SPEED + Math.random() - 0.5),
-      gravity: 0.1,
-      useGravity: document.getElementById('gravityToggle').checked,
-      useElasticity: document.getElementById('elasticityToggle').checked,
-      trailPoints: []
-    });
-  }
+  addNewBall();
 
   const colors = ["#00d4ff", "#ff6b6b", "#4ecdc4", "#45b7d1", "#feca57", "#ff9f43", "#a29bfe", "#e056fd"];
   const baseRadius = canvas.width * 0.15;
-  const radiusStep = 45;
+  const radiusStep = 35; 
 
   for (let i = 0; i < NUM_CIRCLES; i++) {
     circles.push({
@@ -244,201 +289,121 @@ function initializeGame() {
 // --- Particle System ---
 class Particle {
   constructor(x, y, color) {
-    this.x = x;
-    this.y = y;
-    this.vx = (Math.random() - 0.5) * 10;
-    this.vy = (Math.random() - 0.5) * 10;
-    this.life = 1.0;
-    this.decay = Math.random() * 0.02 + 0.01;
-    this.color = color;
-    this.size = Math.random() * 4 + 2;
+    this.x = x; this.y = y;
+    this.vx = (Math.random() - 0.5) * 10; this.vy = (Math.random() - 0.5) * 10;
+    this.life = 1.0; this.decay = Math.random() * 0.02 + 0.01;
+    this.color = color; this.size = Math.random() * 4 + 2;
   }
-  
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vx *= 0.98;
-    this.vy *= 0.98;
-    this.life -= this.decay;
-    this.size *= 0.99;
-  }
-  
-  draw(ctx) {
-    ctx.save();
-    ctx.globalAlpha = this.life;
-    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-    gradient.addColorStop(0, this.color);
-    gradient.addColorStop(1, 'transparent');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
+  update() { this.x += this.vx; this.y += this.vy; this.vx *= 0.98; this.vy *= 0.98; this.life -= this.decay; this.size *= 0.99; }
+  draw(ctx) { ctx.save(); ctx.globalAlpha = this.life; const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size); gradient.addColorStop(0, this.color); gradient.addColorStop(1, 'transparent'); ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 }
-
-function createParticles(x, y, color, count = 15) {
-  for (let i = 0; i < count; i++) {
-    particles.push(new Particle(x, y, color));
-  }
-}
-
-function updateParticles() {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    particles[i].update();
-    if (particles[i].life <= 0) {
-      particles.splice(i, 1);
-    }
-  }
-}
-
-function drawParticles() {
-  particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-  particles.forEach(particle => particle.draw(particleCtx));
-}
+function createParticles(x, y, color, count = 15) { for (let i = 0; i < count; i++) { particles.push(new Particle(x, y, color)); } }
+function updateParticles() { for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); if (particles[i].life <= 0) { particles.splice(i, 1); } } }
+function drawParticles() { particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height); particles.forEach(particle => particle.draw(particleCtx)); }
 
 // --- Audio and UI ---
 function playSound(frequency = 440, volume = 0.1) {
+  if (!audioContext) return;
   let oscillator = audioContext.createOscillator();
   let gainNode = audioContext.createGain();
   
-  oscillator.type = 'sine';
+  oscillator.type = 'triangle'; // Changed for a richer, synth-like tone
   oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
   
   gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4); // Longer decay
   
   oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
   oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.2);
+  oscillator.stop(audioContext.currentTime + 0.4); // Match longer decay
 }
-
-function updateScore() {
-  scoreDisplay.textContent = "Score: " + score;
-  scoreDisplay.style.animation = 'none';
-  setTimeout(() => {
-    scoreDisplay.style.animation = 'glow 0.5s ease-in-out';
-  }, 10);
-}
-
+function updateScore() { scoreDisplay.textContent = "Score: " + score; scoreDisplay.style.animation = 'none'; setTimeout(() => { scoreDisplay.style.animation = 'glow 0.5s ease-in-out'; }, 10); }
 function updateAverageBallSizeIndicator() {
-    if (balls.length === 0) {
-        sizeBarFill.style.width = '0%';
-        return;
-    }
-
-    const totalRadius = balls.reduce((sum, ball) => sum + ball.radius, 0);
-    const averageRadius = totalRadius / balls.length;
-
-    const range = MAX_BALL_RADIUS - INITIAL_BALL_RADIUS;
-    const correctedAverage = averageRadius - INITIAL_BALL_RADIUS;
-    let fillPercentage = (correctedAverage / range) * 100;
-    
-    fillPercentage = Math.max(0, Math.min(100, fillPercentage));
-
+    if (balls.length === 0) { sizeBarFill.style.width = '0%'; return; }
+    const totalRadius = balls.reduce((sum, ball) => sum + ball.radius, 0); const averageRadius = totalRadius / balls.length;
+    const range = MAX_BALL_RADIUS - INITIAL_BALL_RADIUS; const correctedAverage = averageRadius - INITIAL_BALL_RADIUS;
+    let fillPercentage = (correctedAverage / range) * 100; fillPercentage = Math.max(0, Math.min(100, fillPercentage));
     sizeBarFill.style.width = fillPercentage + '%';
 }
+function createBallSizeUI() {
+    const container = document.getElementById('ballSizeContainer');
+    container.innerHTML = ''; 
+    balls.forEach(ball => {
+        const infoDiv = document.createElement('div'); infoDiv.className = 'ball-size-info';
+        const colorIndicator = document.createElement('span'); colorIndicator.className = 'ball-color-indicator'; colorIndicator.style.backgroundColor = ball.color;
+        const sizeText = document.createElement('span'); sizeText.className = 'ball-size-text'; sizeText.id = `ball-size-${ball.id}`; sizeText.textContent = `Size: ${ball.radius.toFixed(1)}`;
+        infoDiv.appendChild(colorIndicator); infoDiv.appendChild(sizeText); container.appendChild(infoDiv);
+    });
+}
+function updateBallSizeCounters() {
+    balls.forEach(ball => {
+        const sizeTextElement = document.getElementById(`ball-size-${ball.id}`);
+        if (sizeTextElement) { sizeTextElement.textContent = `Size: ${ball.radius.toFixed(1)}`; }
+    });
+}
+function darkenColor(hex, percent) {
+    hex = hex.replace(/^#/, ''); let r = parseInt(hex.substring(0, 2), 16); let g = parseInt(hex.substring(2, 4), 16); let b = parseInt(hex.substring(4, 6), 16);
+    r = parseInt(r * (100 - percent) / 100); g = parseInt(g * (100 - percent) / 100); b = parseInt(b * (100 - percent) / 100);
+    r = (r < 255) ? r : 255;  g = (g < 255) ? g : 255;  b = (b < 255) ? b : 255;
+    const rr = ((r.toString(16).length === 1) ? "0" + r.toString(16) : r.toString(16)); const gg = ((g.toString(16).length === 1) ? "0" + g.toString(16) : g.toString(16)); const bb = ((b.toString(16).length === 1) ? "0" + b.toString(16) : b.toString(16));
+    return `#${rr}${gg}${bb}`;
+}
 
-// --- Collision Detection ---
+// --- Collision & Drawing ---
 function isOnGap(ball, circleObj, arcLength) {
   let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
   if (Math.abs(dist - circleObj.radius) > ball.radius + 2) return false;
-  
   let ballAngle = (Math.atan2(ball.y, ball.x) + Math.PI * 2) % (Math.PI * 2);
-  let gapAngle = arcLength / circleObj.radius;
-  let startAngle = (circleObj.angle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  let gapAngle = arcLength / circleObj.radius; let startAngle = (circleObj.angle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
   let endAngle = (startAngle + gapAngle);
-
-  if (endAngle >= Math.PI * 2) {
-    return ballAngle >= startAngle || ballAngle <= endAngle % (Math.PI * 2);
-  } else {
-    return ballAngle >= startAngle && ballAngle <= endAngle;
-  }
+  if (endAngle >= Math.PI * 2) { return ballAngle >= startAngle || ballAngle <= endAngle % (Math.PI * 2); } 
+  else { return ballAngle >= startAngle && ballAngle <= endAngle; }
 }
-
-// --- Drawing Functions ---
 function drawCircles() {
   const arcLength = 100;
-  
   for (let c of circles) {
     if (!c.visible) continue;
-
-    ctx.strokeStyle = c.color;
-    ctx.lineWidth = 5;
-
+    ctx.strokeStyle = c.color; ctx.lineWidth = 5;
     const gapAngle = arcLength / c.radius;
-    
-    ctx.beginPath();
-    ctx.arc(0, 0, c.radius, c.angle + gapAngle, c.angle + Math.PI * 2, false);
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, c.radius, c.angle + gapAngle, c.angle + Math.PI * 2, false); ctx.stroke();
   }
 }
-
 function drawBall(ball) {
   ball.trailPoints.push({x: ball.x, y: ball.y, life: 1.0, radius: ball.radius});
   if (ball.trailPoints.length > 20) ball.trailPoints.shift();
-  
   for (let i = 0; i < ball.trailPoints.length; i++) {
-    const point = ball.trailPoints[i];
-    point.life -= 0.05;
-    
+    const point = ball.trailPoints[i]; point.life -= 0.05;
     if (point.life > 0) {
-      ctx.save();
-      ctx.globalAlpha = point.life * 0.5;
-      const size = point.radius * point.life * 0.8;
+      ctx.save(); ctx.globalAlpha = point.life * 0.5; const size = point.radius * point.life * 0.8;
       const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, size);
-      gradient.addColorStop(0, '#00d4ff');
-      gradient.addColorStop(1, 'transparent');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      gradient.addColorStop(0, ball.color); gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(point.x, point.y, size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
   }
   ball.trailPoints = ball.trailPoints.filter(point => point.life > 0);
-  
-  ctx.save();
-  ctx.shadowColor = '#00d4ff';
-  ctx.shadowBlur = 30;
-  
-  const ballGradient = ctx.createRadialGradient(
-    ball.x - ball.radius/3, ball.y - ball.radius/3, 0,
-    ball.x, ball.y, ball.radius
-  );
-  ballGradient.addColorStop(0, '#ffffff');
-  ballGradient.addColorStop(0.3, '#00d4ff');
-  ballGradient.addColorStop(1, '#0099cc');
-  
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-  ctx.fillStyle = ballGradient;
-  ctx.fill();
-  ctx.restore();
+  ctx.save(); ctx.shadowColor = ball.color; ctx.shadowBlur = 30;
+  const ballGradient = ctx.createRadialGradient(ball.x - ball.radius/3, ball.y - ball.radius/3, 0, ball.x, ball.y, ball.radius);
+  const darkColor = darkenColor(ball.color, 30); ballGradient.addColorStop(0, '#ffffff'); ballGradient.addColorStop(0.3, ball.color); ballGradient.addColorStop(1, darkColor);
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = ballGradient; ctx.fill(); ctx.restore();
 }
 
-// --- Update and Game Loop ---
+// --- Main Game Loop ---
 function updateBall(ball) {
   const arcLength = 100;
-  if (ball.useGravity) {
-    ball.dy += ball.gravity;
-  }
-  ball.x += ball.dx;
-  ball.y += ball.dy;
+  if (ball.useGravity) { ball.dy += ball.gravity; }
+  ball.x += ball.dx; ball.y += ball.dy;
 
   for (let c of circles) {
     if (!c.visible) continue;
-
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
-
     if (isOnGap(ball, c, arcLength)) {
       c.visible = false;
       createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, c.color, 25);
-      playSound(800, 0.2);
+      playSound(800, 0.2); // Score sound
       score++;
       updateScore();
-      
+      addNewBall();
       if (circles.every(circ => !circ.visible)) {
         level++;
         playSound(1200, 0.3);
@@ -446,33 +411,21 @@ function updateBall(ball) {
       }
       continue;
     }
-
     if (dist > c.radius - ball.radius && dist < c.radius + ball.radius) {
-        let nx = ball.x / dist;
-        let ny = ball.y / dist;
-        let dot = ball.dx * nx + ball.dy * ny;
+        let nx = ball.x / dist; let ny = ball.y / dist; let dot = ball.dx * nx + ball.dy * ny;
         let isApproaching = dot * (dist - c.radius) < 0;
-
         if (isApproaching) {
-            // Determine the bounce factor: 1.0 for normal, or a boost factor if toggled
             const bounceFactor = ball.useElasticity ? BOUNCE_BOOST_FACTOR : 1.0;
-
-            ball.dx -= 2 * dot * nx * bounceFactor;
-            ball.dy -= 2 * dot * ny * bounceFactor;
-            
-            // --- SPEED CAP LOGIC ---
+            ball.dx -= 2 * dot * nx * bounceFactor; ball.dy -= 2 * dot * ny * bounceFactor;
             const currentSpeed = Math.sqrt(ball.dx**2 + ball.dy**2);
-            if (currentSpeed > MAX_BALL_SPEED) {
-                const scale = MAX_BALL_SPEED / currentSpeed;
-                ball.dx *= scale;
-                ball.dy *= scale;
-            }
-            // --- END SPEED CAP ---
-
+            if (currentSpeed > MAX_BALL_SPEED) { const scale = MAX_BALL_SPEED / currentSpeed; ball.dx *= scale; ball.dy *= scale; }
             ball.radius = Math.min(ball.radius + BALL_GROWTH_AMOUNT, MAX_BALL_RADIUS);
-
             createParticles(canvas.width/2 + ball.x, canvas.height/2 + ball.y, c.color, 8);
-            playSound(300 + c.radius / 3, 0.1);
+            
+            // --- PLAY MELODY NOTE ON BOUNCE ---
+            const noteFrequency = MELODY_SCALE[melodyNoteIndex];
+            playSound(noteFrequency, 0.08); // Quieter volume for bounce
+            melodyNoteIndex = (melodyNoteIndex + 1) % MELODY_SCALE.length; // Cycle to the next note
         }
     }
   }
@@ -482,41 +435,29 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
-  
   balls.forEach(ball => updateBall(ball));
   drawCircles();
   balls.forEach(ball => drawBall(ball));
-  
   ctx.restore();
-
   circles.forEach(c => c.angle += c.speed);
-
   updateParticles();
   drawParticles();
   updateAverageBallSizeIndicator();
-
+  updateBallSizeCounters();
   requestAnimationFrame(draw);
 }
 
 // --- Controls and Event Listeners ---
-function toggleGravity(checked) {
-  balls.forEach(ball => ball.useGravity = checked);
-}
-
-function toggleElasticity(checked) {
-  balls.forEach(ball => ball.useElasticity = checked);
-}
-
+function toggleGravity(checked) { balls.forEach(ball => ball.useGravity = checked); }
+function toggleElasticity(checked) { balls.forEach(ball => ball.useElasticity = checked); }
 function resizeCanvas() {
   const size = Math.min(window.innerWidth * 0.95, window.innerHeight * 0.9, 900);
-  canvas.width = size;
-  canvas.height = size;
-  particleCanvas.width = window.innerWidth;
-  particleCanvas.height = window.innerHeight;
-  
+  canvas.width = size; canvas.height = size;
+  particleCanvas.width = window.innerWidth; particleCanvas.height = window.innerHeight;
+  score = 0; level = 1;
+  melodyNoteIndex = 0; // Reset melody on restart
   initializeGame();
 }
-
 window.addEventListener('resize', resizeCanvas);
 
 // --- Start Game ---

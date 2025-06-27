@@ -77,15 +77,25 @@ let circle = {
   visible: true
 };
 
-// 6 neon circles with different neon colors
-let extraCircles = [
-  {radius: 230, color: "#0ff", glow: "#0ff", angle: 0, speed: 0.008, visible: true},
-  {radius: 260, color: "#f0f", glow: "#f0f", angle: 0, speed: 0.007, visible: true},
-  {radius: 290, color: "#ff0", glow: "#ff0", angle: 0, speed: 0.006, visible: true},
-  {radius: 320, color: "#0f0", glow: "#0f0", angle: 0, speed: 0.005, visible: true},
-  {radius: 350, color: "#0ff", glow: "#0ff", angle: 0, speed: 0.004, visible: true},
-  {radius: 380, color: "#f0f", glow: "#f0f", angle: 0, speed: 0.003, visible: true}
+// 25 neon circles with different neon colors and increasing radii, all evenly spaced from the main circle
+let extraCircles = [];
+const neonColors = [
+  "#0ff", "#f0f", "#ff0", "#0f0", "#0ff", "#f0f", "#ff0", "#0f0", "#0ff", "#f0f",
+  "#ff0", "#0f0", "#0ff", "#f0f", "#ff0", "#0f0", "#0ff", "#f0f", "#ff0", "#0f0",
+  "#0ff", "#f0f", "#ff0", "#0f0", "#0ff"
 ];
+let gap = 6;
+let baseRadius = circle.radius + gap;
+for (let i = 0; i < 25; i++) {
+  extraCircles.push({
+    radius: baseRadius + i * gap,
+    color: neonColors[i % neonColors.length],
+    glow: neonColors[i % neonColors.length],
+    angle: 0,
+    speed: 0.008 - i * 0.0002,
+    visible: true
+  });
+}
 
 function randomBallPosition(radius, ballRadius) {
   // Place randomly inside the main circle, not too close to the edge
@@ -216,6 +226,12 @@ function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, c, arcLength)) {
       c.visible = false;
+      // Shrink ALL visible circles when one is destroyed
+      for (let j = 0; j < extraCircles.length; j++) {
+        if (extraCircles[j].visible) {
+          extraCircles[j].radius = Math.max(extraCircles[j].radius - 10, 30);
+        }
+      }
       playSound(soundBase + 300);
       scoreRef.value++;
       updateScore();

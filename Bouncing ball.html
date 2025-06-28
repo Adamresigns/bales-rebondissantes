@@ -70,17 +70,19 @@ const score2Display = document.getElementById('score2');
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 let score1, score2, circle, extraCircles, ball1, ball2;
-let arcLength, isGameOver;
+let arcLength, isGameOver, shockwaves;
 
 const neonColors = [ "#7ed6df", "#eccc68", "#ffb8b8", "#b8e994", "#f6e58d", "#dff9fb", "#f9ca24", "#f3a683", "#f7d794", "#f5cd79", "#c7ecee", "#f8a5c2", "#63cdda", "#ea8685", "#f3a683", "#f7d794" ];
 const initialArcLength = 30, maxArcLength = 200, arcGrowSpeed = 0.03;
+const SHRINK_RATE = 0.03, MIN_RADIUS = 30;
 
-// NOUVEAU : Constantes pour le rétrécissement des cercles
-const SHRINK_RATE = 0.03; // Vitesse à laquelle les cercles rétrécissent. Ajustez pour changer la difficulté.
-const MIN_RADIUS = 30;    // Le rayon minimum que les cercles peuvent atteindre.
+// NOUVEAU : Constantes pour l'effet d'ondulation
+const RIPPLE_SPEED = 5;
+const RIPPLE_LINE_WIDTH = 2.5;
 
 function initializeGame() {
     isGameOver = false; score1 = 0; score2 = 0; updateScore();
+    shockwaves = [];
     circle = { x: 0, y: 0, radius: 200, angle: 0, speed: 0.01, visible: false };
     extraCircles = []; arcLength = initialArcLength;
 
@@ -97,7 +99,7 @@ function initializeGame() {
     } while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < startRadius * 2);
 }
 
-// (Les fonctions de son et les fonctions utilitaires sont minifiées pour la lisibilité)
+// (Les fonctions de son et les fonctions utilitaires sont minifiées)
 function playHitSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination);const n=200+100*Math.random();o.type="triangle",a.gain.setValueAtTime(.3,t),o.frequency.setValueAtTime(n,t),a.gain.exponentialRampToValueAtTime(.001,t+.2),o.frequency.exponentialRampToValueAtTime(50,t+.15),o.start(t),o.stop(t+.2)}
 function playShatterSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination),o.type="sine",a.gain.setValueAtTime(.5,t),o.frequency.setValueAtTime(120,t),a.gain.exponentialRampToValueAtTime(.001,t+.4),o.frequency.exponentialRampToValueAtTime(30,t+.4),o.start(t),o.stop(t+.4);const n=audioContext.createBuffer(1,.5*audioContext.sampleRate,audioContext.sampleRate),e=n.getChannelData(0);for(let c=0;c<e.length;c++)e[c]=2*Math.random()-1;const i=audioContext.createBufferSource();i.buffer=n;const s=audioContext.createGain();i.connect(s),s.connect(audioContext.destination),s.gain.setValueAtTime(.2,t),s.gain.exponentialRampToValueAtTime(.001,t+.3),i.start(t),i.stop(t+.5)}
 function randomBallPosition(r,br){let a=Math.random()*(r-br-10),t=Math.random()*Math.PI*2;return{x:Math.cos(t)*a,y:Math.sin(t)*a}}
@@ -105,14 +107,39 @@ function updateScore(){score1Display.textContent=score1;score2Display.textConten
 function isOnRedArc(bx,by,co,al){let d=Math.hypot(bx,by);if(Math.abs(d-co.radius)>22)return false;let a=Math.atan2(by,bx);if(a<0)a+=Math.PI*2;let aa=al/co.radius,sa=co.angle%(Math.PI*2),ea=(sa+aa)%(Math.PI*2);return sa<ea?a>=sa&&a<=ea:a>=sa||a<=ea}
 function updateCircleAnimations(){for(const c of extraCircles){if(Math.abs(c.radius-c.targetRadius)>0.1){c.radius+=(c.targetRadius-c.radius)*0.1}else{c.radius=c.targetRadius}}}
 function updateBallAnimations(){if(Math.abs(ball1.radius-ball1.targetRadius)>0.05)ball1.radius+=(ball1.targetRadius-ball1.radius)*0.1;if(Math.abs(ball2.radius-ball2.targetRadius)>0.05)ball2.radius+=(ball2.targetRadius-ball2.radius)*0.1}
+function shrinkCirclesOverTime(){for(const c of extraCircles){if(c.visible){c.targetRadius=Math.max(c.targetRadius-SHRINK_RATE,MIN_RADIUS)}}}
 
-// NOUVEAU : Fonction pour rétrécir les cercles avec le temps
-function shrinkCirclesOverTime() {
-    for (const c of extraCircles) {
-        if (c.visible) {
-            const newTargetRadius = c.targetRadius - SHRINK_RATE;
-            c.targetRadius = Math.max(newTargetRadius, MIN_RADIUS); // Empêche de devenir trop petit
+// NOUVEAU : Fonction redéfinie pour l'effet d'ondulation
+function updateAndDrawRipples() {
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const ripple = shockwaves[i];
+        
+        // Mettre à jour le rayon
+        ripple.radius += RIPPLE_SPEED;
+
+        // La supprimer si elle est sortie de l'écran
+        if (ripple.radius > ripple.maxRadius) {
+            shockwaves.splice(i, 1);
+            continue;
         }
+
+        // Calculer la progression de 0 (centre) à 1 (bord)
+        const progress = ripple.radius / ripple.maxRadius;
+        
+        // L'opacité diminue à mesure que la vague s'étend
+        const alpha = 1 - progress;
+
+        // Dessiner l'ondulation
+        ctx.save();
+        ctx.strokeStyle = ripple.color;
+        ctx.lineWidth = RIPPLE_LINE_WIDTH;
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = ripple.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, ripple.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
     }
 }
 
@@ -121,16 +148,9 @@ function drawGameElements(){
     for(let c of extraCircles){
         if(!c.visible)continue;
         let a=arcLength/c.radius,sa=c.angle,ea=sa+a;
-        ctx.save();
-        ctx.lineCap='round';
-        ctx.shadowColor=c.glow;
-        ctx.shadowBlur=20;
-        ctx.beginPath();
-        ctx.arc(0,0,c.radius,ea,sa+2*Math.PI,false);
-        ctx.strokeStyle=c.color;
-        ctx.lineWidth=10;
-        ctx.stroke();
-        ctx.restore();
+        ctx.save();ctx.lineCap='round';ctx.shadowColor=c.glow;ctx.shadowBlur=20;
+        ctx.beginPath();ctx.arc(0,0,c.radius,ea,sa+2*Math.PI,false);
+        ctx.strokeStyle=c.color;ctx.lineWidth=10;ctx.stroke();ctx.restore();
     }
 }
 
@@ -144,28 +164,29 @@ function updateBall(b,sr,sc){
         if(!c.visible)continue;
         if(isOnRedArc(b.x,b.y,c,arcLength)){
             c.visible=false;
-            for(const oc of extraCircles){
-                if(oc.visible)oc.targetRadius=Math.max(oc.radius-10,30)
-            }
+            // NOUVEAU : Créer une ondulation lors de la destruction
+            shockwaves.push({
+                radius: c.radius,
+                color: c.color,
+                // Le rayon maximum est la distance du centre au coin du canvas
+                maxRadius: Math.hypot(canvas.width / 2, canvas.height / 2)
+            });
+            for(const oc of extraCircles){if(oc.visible)oc.targetRadius=Math.max(oc.radius-10,30)}
             setTimeout(()=>{playShatterSound()},0);
-            sr.value++;
-            b.targetRadius=10+sr.value*0.5;
-            updateScore();
-            continue;
+            sr.value++;b.targetRadius=10+sr.value*0.5;updateScore();continue;
         }
         let d=Math.hypot(b.x,b.y);
         if(Math.abs(d-c.radius)<b.radius+5){
             let nx=b.x/d,ny=b.y/d,dot=b.dx*nx+b.dy*ny;
             b.dx-=2*dot*nx*(b.useElasticity?b.elasticity:1);
             b.dy-=2*dot*ny*(b.useElasticity?b.elasticity:1);
-            b.x=nx*(c.radius-b.radius-5);
-            b.y=ny*(c.radius-b.radius-5);
-            playHitSound();
-            return
+            b.x=nx*(c.radius-b.radius-5);b.y=ny*(c.radius-b.radius-5);
+            playHitSound();return;
         }
     }
 }
 
+// (Le reste des fonctions est minifié)
 function repelBalls(b1,b2){let dx=b2.x-b1.x,dy=b2.y-b1.y,dist=Math.sqrt(dx*dx+dy*dy),minDist=b1.radius+b2.radius;if(dist<minDist&&dist>0){let o=minDist-dist+0.1,nx=dx/dist,ny=dy/dist;b1.x-=nx*o/2;b1.y-=ny*o/2;b2.x+=nx*o/2;b2.y+=ny*o/2;let dvx=b2.dx-b1.dx,dvy=b2.dy-b1.dy,i=dvx*nx+dvy*ny;if(i<0){b1.dx+=i*nx;b1.dy+=i*ny;b2.dx-=i*nx;b2.dy-=i*ny}}}
 function checkWinCondition(){if(extraCircles.every(c=>!c.visible)&&!isGameOver){isGameOver=true;setTimeout(initializeGame,5000)}}
 function drawGameOverScreen(){ctx.save();ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);ctx.fillStyle="#fff";ctx.textAlign='center';ctx.font="bold 60px sans-serif";ctx.shadowColor="#0ff";ctx.shadowBlur=20;let wt;if(score1>score2){wt="Blue Player Wins!";ctx.shadowColor="#00f6ff"}else if(score2>score1){wt="Red Player Wins!";ctx.shadowColor="#ff0066"}else{wt="It's a Tie!"}ctx.fillText("GAME OVER",0,-20);ctx.font="bold 40px sans-serif",ctx.fillText(wt,0,40),ctx.font="20px sans-serif",ctx.shadowBlur=10,ctx.fillText("Restarting...",0,100),ctx.restore()}
@@ -181,12 +202,14 @@ function draw(){
     ctx.save();
     ctx.translate(canvas.width/2,canvas.height/2);
     if(isGameOver){
+        updateAndDrawRipples();
         drawGameElements();
-        drawGameOverScreen()
+        drawGameOverScreen();
     } else {
         updateCircleAnimations();
         updateBallAnimations();
-        shrinkCirclesOverTime(); // NOUVEAU : Appel de la fonction de rétrécissement
+        shrinkCirclesOverTime();
+        updateAndDrawRipples(); // NOUVEAU : Dessiner les ondulations en arrière-plan
         drawGameElements();
         drawBall(ball1,"#00f6ff","#00f6ff");
         drawBall(ball2,"#ff0066","#ff0066");
@@ -194,9 +217,9 @@ function draw(){
         updateBall(ball2,{get value(){return score2},set value(v){score2=v}});
         repelBalls(ball1,ball2);
         for(let c of extraCircles)c.angle+=c.speed;
-        checkWinCondition()
+        checkWinCondition();
     }
-    ctx.restore()
+    ctx.restore();
 }
 
 document.addEventListener('DOMContentLoaded',()=>{resizeCanvas();initializeGame();draw();});

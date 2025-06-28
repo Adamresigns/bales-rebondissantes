@@ -7,7 +7,7 @@
     body {
       background: radial-gradient(circle at top, #11182A, #070a13);
       overflow: hidden;
-      margin: 0; /* Ensures no default body margin */
+      margin: 0;
     }
     canvas {
       background: radial-gradient(circle at center, #1c2a4f, #070a13 70%);
@@ -65,127 +65,142 @@
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const speedInput = document.getElementById('speed');
 const score1Display = document.getElementById('score1');
 const score2Display = document.getElementById('score2');
-
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 let score1, score2, circle, extraCircles, ball1, ball2;
-let arcLength, shatterEffects, isGameOver;
+let arcLength, isGameOver;
 
-const neonColors = [
-  "#7ed6df", "#eccc68", "#ffb8b8", "#b8e994", "#f6e58d", "#dff9fb", "#f9ca24", "#f3a683",
-  "#f7d794", "#f5cd79", "#c7ecee", "#f8a5c2", "#63cdda", "#ea8685", "#f3a683", "#f7d794"
-];
-const initialArcLength = 30;
-const maxArcLength = 200;
-const arcGrowSpeed = 0.03;
+const neonColors = [ "#7ed6df", "#eccc68", "#ffb8b8", "#b8e994", "#f6e58d", "#dff9fb", "#f9ca24", "#f3a683", "#f7d794", "#f5cd79", "#c7ecee", "#f8a5c2", "#63cdda", "#ea8685", "#f3a683", "#f7d794" ];
+const initialArcLength = 30, maxArcLength = 200, arcGrowSpeed = 0.03;
+
+// NOUVEAU : Constantes pour le rétrécissement des cercles
+const SHRINK_RATE = 0.03; // Vitesse à laquelle les cercles rétrécissent. Ajustez pour changer la difficulté.
+const MIN_RADIUS = 30;    // Le rayon minimum que les cercles peuvent atteindre.
 
 function initializeGame() {
-    isGameOver = false;
-    score1 = 0; score2 = 0; updateScore();
+    isGameOver = false; score1 = 0; score2 = 0; updateScore();
     circle = { x: 0, y: 0, radius: 200, angle: 0, speed: 0.01, visible: false };
-    extraCircles = [];
-    shatterEffects = [];
-    arcLength = initialArcLength;
+    extraCircles = []; arcLength = initialArcLength;
 
-    const gap = 6; const thickness = 10;
-    const baseRadius = circle.radius + gap;
+    const gap = 6, thickness = 10, baseRadius = circle.radius + gap;
     for (let i = 0; i < 23; i++) {
         const rad = baseRadius + i * (gap + thickness);
-        extraCircles.push({
-            radius: rad,
-            targetRadius: rad,
-            color: neonColors[i % neonColors.length],
-            glow: neonColors[i % neonColors.length], angle: 0, speed: 0.008 - i * 0.0002, visible: true
-        });
-    }
-
-    ball1 = { ...randomBallPosition(circle.radius, 10), radius: 10, dx: parseFloat(speedInput.value), dy: parseFloat(speedInput.value), gravity: 0.1, elasticity: 0.8, useGravity: false, useElasticity: false };
-    do {
-        ball2 = { ...randomBallPosition(circle.radius, 10), radius: 10, dx: -parseFloat(speedInput.value), dy: -parseFloat(speedInput.value), gravity: 0.1, elasticity: 0.8, useGravity: false, useElasticity: false };
-    } while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < 20);
-}
-
-// (Sound functions omitted for brevity, but are identical to the previous version)
-function playHitSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination);const n=200+100*Math.random();o.type="triangle",a.gain.setValueAtTime(.3,t),o.frequency.setValueAtTime(n,t),a.gain.exponentialRampToValueAtTime(.001,t+.2),o.frequency.exponentialRampToValueAtTime(50,t+.15),o.start(t),o.stop(t+.2)}
-function playShatterSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination),o.type="sine",a.gain.setValueAtTime(.5,t),o.frequency.setValueAtTime(120,t),a.gain.exponentialRampToValueAtTime(.001,t+.4),o.frequency.exponentialRampToValueAtTime(30,t+.4),o.start(t),o.stop(t+.4);const n=audioContext.createBuffer(1,.5*audioContext.sampleRate,audioContext.sampleRate),e=n.getChannelData(0);for(let c=0;c<e.length;c++)e[c]=2*Math.random()-1;const i=audioContext.createBufferSource();i.buffer=n;const s=audioContext.createGain();i.connect(s),s.connect(audioContext.destination),s.gain.setValueAtTime(.2,t),s.gain.exponentialRampToValueAtTime(.001,t+.3),i.start(t),i.stop(t+.5)}
-
-function createShatterEffect(x, y, radius, color) { /* ... same as before ... */ }
-function createShatterEffect(x,y,radius,color){const e=100,t=[];for(let a=0;a<e;a++){const o=2*Math.random()*Math.PI,n=3.5*Math.random()+1,r=60*Math.random()+40;t.push({x:x+Math.cos(o)*radius,y:y+Math.sin(o)*radius,dx:Math.cos(o)*n,dy:Math.sin(o)*n,life:r,initialLife:r,size:2.5*Math.random()+.5,color:color})}shatterEffects.push({particles:t})}
-
-function randomBallPosition(radius, ballRadius) { /* ... same as before ... */ }
-function randomBallPosition(e,t){let a=Math.random()*(e-t-10),o=2*Math.random()*Math.PI;return{x:Math.cos(o)*a,y:Math.sin(o)*a}}
-
-function updateScore() { /* ... same as before ... */ }
-function updateScore(){score1Display.textContent=score1,score2Display.textContent=score2}
-
-function isOnRedArc(ballX, ballY, circleObj, arcLengthParam) { /* ... same as before ... */ }
-function isOnRedArc(e,t,o,a){let n=Math.sqrt(e*e+t*t);if(Math.abs(n-o.radius)>22)return!1;let r=Math.atan2(t,e);r<0&&(r+=2*Math.PI);let l=a/o.radius,s=o.angle%(2*Math.PI),c=(s+l)%(2*Math.PI);return s<c?r>=s&&r<=c:r>=s||r<=c}
-
-function updateCircleAnimations() { /* ... same as before ... */ }
-function updateCircleAnimations(){for(const e of extraCircles)Math.abs(e.radius-e.targetRadius)>.1?e.radius+=(e.targetRadius-e.radius)*.1:e.radius=e.targetRadius}
-
-function drawGameElements() { /* ... same as before ... */ }
-function drawGameElements(){arcLength=Math.min(maxArcLength,arcLength+arcGrowSpeed);for(let e of extraCircles){if(!e.visible)continue;let t=arcLength/e.radius,o=e.angle,a=o+t;ctx.save(),ctx.lineCap="round",ctx.shadowColor=e.glow,ctx.shadowBlur=20,ctx.beginPath(),ctx.arc(circle.x,circle.y,e.radius,a,o+2*Math.PI,!1),ctx.strokeStyle=e.color,ctx.lineWidth=10,ctx.stroke(),ctx.restore()}for(let n=shatterEffects.length-1;n>=0;n--){const r=shatterEffects[n];for(let l=r.particles.length-1;l>=0;l--){const s=r.particles[l];s.x+=s.dx,s.y+=s.dy,s.dx*=.99,s.dy*=.99,s.life--,s.life<=0?(r.particles.splice(l,1),void 0):(ctx.save(),ctx.globalAlpha=s.life/s.initialLife,ctx.fillStyle=s.color,ctx.shadowColor=s.color,ctx.shadowBlur=5,ctx.beginPath(),ctx.arc(s.x,s.y,s.size*(s.life/s.initialLife),0,2*Math.PI),ctx.fill(),ctx.restore())}0===r.particles.length&&shatterEffects.splice(n,1)}}
-
-function drawBall(ball, color, glow) { /* ... same as before ... */ }
-function drawBall(e,t,o){ctx.save(),ctx.beginPath(),ctx.arc(e.x,e.y,e.radius,0,2*Math.PI),ctx.shadowColor=o,ctx.shadowBlur=40,ctx.fillStyle=t,ctx.fill(),ctx.restore()}
-
-function updateBall(ball, scoreRef) { /* ... same as before ... */ }
-function updateBall(e,t){e.useGravity&&(e.dy+=e.gravity),e.x+=e.dx,e.y+=e.dy;for(let o=extraCircles.length-1;o>=0;o--){let a=extraCircles[o];if(a.visible){let n=Math.sqrt(e.x*e.x+e.y*e.y);if(isOnRedArc(e.x,e.y,a,arcLength)){createShatterEffect(circle.x,circle.y,a.radius,a.color),a.visible=!1;for(const r of extraCircles)r.visible&&(r.targetRadius=Math.max(r.radius-10,30));return playShatterSound(),t.value++,void updateScore()}if(Math.abs(n-a.radius)<e.radius+5){let l=e.x/n,s=e.y/n,c=e.dx*l+e.dy*s;e.dx-=2*c*l*(e.useElasticity?e.elasticity:1),e.dy-=2*c*s*(e.useElasticity?e.elasticity:1),e.x=l*(a.radius-e.radius-5),e.y=s*(a.radius-e.radius-5),playHitSound(),void 0}}}}
-
-function repelBalls(b1, b2) { /* ... same as before ... */ }
-function repelBalls(e,t){let o=t.x-e.x,a=t.y-e.y,n=Math.sqrt(o*o+a*a),r=e.radius+t.radius;if(n<r&&n>0){let l=r-n+.1,s=o/n,c=a/n;e.x-=s*l/2,e.y-=c*l/2,t.x+=s*l/2,t.y+=c*l/2;let i=t.dx-e.dx,u=t.dy-e.dy,d=i*s+u*c;d<0&&(e.dx+=d*s,e.dy+=d*c,t.dx-=d*s,t.dy-=d*c)}}
-
-function checkWinCondition() { /* ... same as before ... */ }
-function checkWinCondition(){const e=extraCircles.every(e=>!e.visible);e&&!isGameOver&&(isGameOver=!0,setTimeout(initializeGame,5e3))}
-
-function drawGameOverScreen() { /* ... same as before ... */ }
-function drawGameOverScreen(){ctx.save(),ctx.fillStyle="rgba(0, 0, 0, 0.7)",ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height),ctx.fillStyle="#fff",ctx.textAlign="center",ctx.font="bold 60px sans-serif",ctx.shadowColor="#0ff",ctx.shadowBlur=20;let e;score1>score2?(e="Blue Player Wins!",ctx.shadowColor="#00f6ff"):score2>score1?(e="Red Player Wins!",ctx.shadowColor="#ff0066"):e="It's a Tie!",ctx.fillText("GAME OVER",0,-20),ctx.font="bold 40px sans-serif",ctx.fillText(e,0,40),ctx.font="20px sans-serif",ctx.shadowBlur=10,ctx.fillText("Restarting...",0,100),ctx.restore()}
-
-function draw() {
-    requestAnimationFrame(draw);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-
-    if (isGameOver) {
-        drawGameElements();
-        drawGameOverScreen();
-    } else {
-        updateCircleAnimations();
-        drawGameElements();
-        drawBall(ball1, "#00f6ff", "#00f6ff");
-        drawBall(ball2, "#ff0066", "#ff0066");
-        updateBall(ball1, {get value(){return score1}, set value(v){score1=v}});
-        updateBall(ball2, {get value(){return score2}, set value(v){score2=v}});
-        repelBalls(ball1, ball2);
-        for (let c of extraCircles) c.angle += c.speed;
-        checkWinCondition();
+        extraCircles.push({ radius: rad, targetRadius: rad, color: neonColors[i % neonColors.length], glow: neonColors[i % neonColors.length], angle: 0, speed: 0.008 - i * 0.0002, visible: true });
     }
     
-    ctx.restore();
+    const startRadius = 10;
+    ball1 = { ...randomBallPosition(circle.radius, startRadius), radius: startRadius, targetRadius: startRadius, dx: 3, dy: 3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8 };
+    do {
+        ball2 = { ...randomBallPosition(circle.radius, startRadius), radius: startRadius, targetRadius: startRadius, dx: -3, dy: -3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8 };
+    } while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < startRadius * 2);
 }
 
-// --- UI AND RESIZE FUNCTIONS ---
-function toggleGravity(checked) { ball1.useGravity = checked; ball2.useGravity = checked; checkDisabled(); }
-function toggleElasticity(checked) { ball1.useElasticity = checked; ball2.useElasticity = checked; checkDisabled(); }
-function checkDisabled() { if (!ball1.useGravity && !ball1.useElasticity) { speedInput.disabled = false; } else { speedInput.disabled = true; speedInput.value = Math.sqrt(ball1.dx * ball1.dx + ball1.dy * ball1.dy).toFixed(1); } }
-function updateSpeed(value) { ball1.dx = parseFloat(value); ball1.dy = parseFloat(value); ball2.dx = -parseFloat(value); ball2.dy = -parseFloat(value); }
-function resizeCanvas() { const size = Math.min(window.innerWidth, window.innerHeight) * 0.9; canvas.width = size; canvas.height = size; }
+// (Les fonctions de son et les fonctions utilitaires sont minifiées pour la lisibilité)
+function playHitSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination);const n=200+100*Math.random();o.type="triangle",a.gain.setValueAtTime(.3,t),o.frequency.setValueAtTime(n,t),a.gain.exponentialRampToValueAtTime(.001,t+.2),o.frequency.exponentialRampToValueAtTime(50,t+.15),o.start(t),o.stop(t+.2)}
+function playShatterSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination),o.type="sine",a.gain.setValueAtTime(.5,t),o.frequency.setValueAtTime(120,t),a.gain.exponentialRampToValueAtTime(.001,t+.4),o.frequency.exponentialRampToValueAtTime(30,t+.4),o.start(t),o.stop(t+.4);const n=audioContext.createBuffer(1,.5*audioContext.sampleRate,audioContext.sampleRate),e=n.getChannelData(0);for(let c=0;c<e.length;c++)e[c]=2*Math.random()-1;const i=audioContext.createBufferSource();i.buffer=n;const s=audioContext.createGain();i.connect(s),s.connect(audioContext.destination),s.gain.setValueAtTime(.2,t),s.gain.exponentialRampToValueAtTime(.001,t+.3),i.start(t),i.stop(t+.5)}
+function randomBallPosition(r,br){let a=Math.random()*(r-br-10),t=Math.random()*Math.PI*2;return{x:Math.cos(t)*a,y:Math.sin(t)*a}}
+function updateScore(){score1Display.textContent=score1;score2Display.textContent=score2}
+function isOnRedArc(bx,by,co,al){let d=Math.hypot(bx,by);if(Math.abs(d-co.radius)>22)return false;let a=Math.atan2(by,bx);if(a<0)a+=Math.PI*2;let aa=al/co.radius,sa=co.angle%(Math.PI*2),ea=(sa+aa)%(Math.PI*2);return sa<ea?a>=sa&&a<=ea:a>=sa||a<=ea}
+function updateCircleAnimations(){for(const c of extraCircles){if(Math.abs(c.radius-c.targetRadius)>0.1){c.radius+=(c.targetRadius-c.radius)*0.1}else{c.radius=c.targetRadius}}}
+function updateBallAnimations(){if(Math.abs(ball1.radius-ball1.targetRadius)>0.05)ball1.radius+=(ball1.targetRadius-ball1.radius)*0.1;if(Math.abs(ball2.radius-ball2.targetRadius)>0.05)ball2.radius+=(ball2.targetRadius-ball2.radius)*0.1}
 
-// --- CORRECTED INITIALIZATION ---
-// We wait for the DOM to be fully loaded before we set up and start the game.
-document.addEventListener('DOMContentLoaded', () => {
-    resizeCanvas();
-    initializeGame();
-    draw();
-});
+// NOUVEAU : Fonction pour rétrécir les cercles avec le temps
+function shrinkCirclesOverTime() {
+    for (const c of extraCircles) {
+        if (c.visible) {
+            const newTargetRadius = c.targetRadius - SHRINK_RATE;
+            c.targetRadius = Math.max(newTargetRadius, MIN_RADIUS); // Empêche de devenir trop petit
+        }
+    }
+}
 
-// The resize listener can be set up immediately.
-window.addEventListener('resize', resizeCanvas);
+function drawGameElements(){
+    arcLength=Math.min(maxArcLength,arcLength+arcGrowSpeed);
+    for(let c of extraCircles){
+        if(!c.visible)continue;
+        let a=arcLength/c.radius,sa=c.angle,ea=sa+a;
+        ctx.save();
+        ctx.lineCap='round';
+        ctx.shadowColor=c.glow;
+        ctx.shadowBlur=20;
+        ctx.beginPath();
+        ctx.arc(0,0,c.radius,ea,sa+2*Math.PI,false);
+        ctx.strokeStyle=c.color;
+        ctx.lineWidth=10;
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawBall(b,c,g){ctx.save();ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.shadowColor=g;ctx.shadowBlur=40;ctx.fillStyle=c;ctx.fill();ctx.restore()}
+
+function updateBall(b,sr,sc){
+    if(b.useGravity)b.dy+=b.gravity;
+    b.x+=b.dx;b.y+=b.dy;
+    for(let i=extraCircles.length-1;i>=0;i--){
+        let c=extraCircles[i];
+        if(!c.visible)continue;
+        if(isOnRedArc(b.x,b.y,c,arcLength)){
+            c.visible=false;
+            for(const oc of extraCircles){
+                if(oc.visible)oc.targetRadius=Math.max(oc.radius-10,30)
+            }
+            setTimeout(()=>{playShatterSound()},0);
+            sr.value++;
+            b.targetRadius=10+sr.value*0.5;
+            updateScore();
+            continue;
+        }
+        let d=Math.hypot(b.x,b.y);
+        if(Math.abs(d-c.radius)<b.radius+5){
+            let nx=b.x/d,ny=b.y/d,dot=b.dx*nx+b.dy*ny;
+            b.dx-=2*dot*nx*(b.useElasticity?b.elasticity:1);
+            b.dy-=2*dot*ny*(b.useElasticity?b.elasticity:1);
+            b.x=nx*(c.radius-b.radius-5);
+            b.y=ny*(c.radius-b.radius-5);
+            playHitSound();
+            return
+        }
+    }
+}
+
+function repelBalls(b1,b2){let dx=b2.x-b1.x,dy=b2.y-b1.y,dist=Math.sqrt(dx*dx+dy*dy),minDist=b1.radius+b2.radius;if(dist<minDist&&dist>0){let o=minDist-dist+0.1,nx=dx/dist,ny=dy/dist;b1.x-=nx*o/2;b1.y-=ny*o/2;b2.x+=nx*o/2;b2.y+=ny*o/2;let dvx=b2.dx-b1.dx,dvy=b2.dy-b1.dy,i=dvx*nx+dvy*ny;if(i<0){b1.dx+=i*nx;b1.dy+=i*ny;b2.dx-=i*nx;b2.dy-=i*ny}}}
+function checkWinCondition(){if(extraCircles.every(c=>!c.visible)&&!isGameOver){isGameOver=true;setTimeout(initializeGame,5000)}}
+function drawGameOverScreen(){ctx.save();ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);ctx.fillStyle="#fff";ctx.textAlign='center';ctx.font="bold 60px sans-serif";ctx.shadowColor="#0ff";ctx.shadowBlur=20;let wt;if(score1>score2){wt="Blue Player Wins!";ctx.shadowColor="#00f6ff"}else if(score2>score1){wt="Red Player Wins!";ctx.shadowColor="#ff0066"}else{wt="It's a Tie!"}ctx.fillText("GAME OVER",0,-20);ctx.font="bold 40px sans-serif",ctx.fillText(wt,0,40),ctx.font="20px sans-serif",ctx.shadowBlur=10,ctx.fillText("Restarting...",0,100),ctx.restore()}
+function toggleGravity(c){ball1.useGravity=c;ball2.useGravity=c;checkDisabled()}
+function toggleElasticity(c){ball1.useElasticity=c;ball2.useElasticity=c;checkDisabled()}
+function checkDisabled(){if(!ball1.useGravity&&!ball1.useElasticity){document.getElementById("speed").disabled=false}else{const e=document.getElementById("speed");e.disabled=true,e.value=Math.sqrt(ball1.dx*ball1.dx+ball1.dy*ball1.dy).toFixed(1)}}
+function updateSpeed(v){const p=parseFloat(v);ball1.dx=p;ball1.dy=p;ball2.dx=-p;ball2.dy=-p}
+function resizeCanvas(){const s=Math.min(window.innerWidth,window.innerHeight)*0.9;canvas.width=s;canvas.height=s}
+
+function draw(){
+    requestAnimationFrame(draw);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.save();
+    ctx.translate(canvas.width/2,canvas.height/2);
+    if(isGameOver){
+        drawGameElements();
+        drawGameOverScreen()
+    } else {
+        updateCircleAnimations();
+        updateBallAnimations();
+        shrinkCirclesOverTime(); // NOUVEAU : Appel de la fonction de rétrécissement
+        drawGameElements();
+        drawBall(ball1,"#00f6ff","#00f6ff");
+        drawBall(ball2,"#ff0066","#ff0066");
+        updateBall(ball1,{get value(){return score1},set value(v){score1=v}});
+        updateBall(ball2,{get value(){return score2},set value(v){score2=v}});
+        repelBalls(ball1,ball2);
+        for(let c of extraCircles)c.angle+=c.speed;
+        checkWinCondition()
+    }
+    ctx.restore()
+}
+
+document.addEventListener('DOMContentLoaded',()=>{resizeCanvas();initializeGame();draw();});
+window.addEventListener('resize',resizeCanvas);
 </script>
 </body>
 </html>

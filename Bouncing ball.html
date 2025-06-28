@@ -5,10 +5,13 @@
   <title>Bouncing Ball in a Circle</title>
   <style>
     body {
-      background: #070a13;
+      /* AESTHETIC CHANGE: New radial background for the whole page */
+      background: radial-gradient(circle at top, #11182A, #070a13);
+      overflow: hidden; /* Prevents scrollbars on smaller screens */
     }
     canvas {
-      background: linear-gradient(135deg, #0ff 0%, #111 100%);
+      /* AESTHETIC CHANGE: Radial gradient synergizes with the circular arena */
+      background: radial-gradient(circle at center, #1c2a4f, #070a13 70%);
       display: block;
       margin: 0 auto;
       box-shadow: 0 0 60px #0ff, 0 0 120px #00f;
@@ -45,7 +48,7 @@
 
 <div style="text-align:center;">
   <label for="speed">Speed:</label>
-  <input type="number" id="speed" value="7" step="0.1" onchange="updateSpeed(this.value);" disabled>
+  <input type="number" id="speed" value="3" step="0.1" onchange="updateSpeed(this.value);" disabled>
   <br>
   <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
   <label for="gravityToggle">Gravity</label>
@@ -53,7 +56,11 @@
   <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
   <label for="elasticityToggle">Elasticity</label>
   <br>
-  <div id="scoreDisplay">Score Ball 1: <span id="score1">0</span> | Score Ball 2: <span id="score2">0</span></div>
+  <div id="scoreDisplay">
+    <span style="color:#00f6ff;text-shadow:0 0 8px #00f6ff;">Blue</span>: <span id="score1">0</span>
+    |
+    <span style="color:#ff0066;text-shadow:0 0 8px #ff0066;">Red</span>: <span id="score2">0</span>
+  </div>
 </div>
 
 <script>
@@ -69,133 +76,169 @@ let score1 = 0;
 let score2 = 0;
 
 let circle = {
-  x: 0,
-  y: 0,
-  radius: 200,
-  angle: 0,
-  speed: 0.01,
-  visible: true
+  x: 0, y: 0, radius: 200, angle: 0, speed: 0.01, visible: false
 };
 
-// 25 neon circles with different neon colors and increasing radii, all evenly spaced from the main circle
 let extraCircles = [];
 const neonColors = [
-  "#0ff", "#f0f", "#ff0", "#0f0", "#0ff", "#f0f", "#ff0", "#0f0", "#0ff", "#f0f",
-  "#ff0", "#0f0", "#0ff", "#f0f", "#ff0", "#0f0", "#0ff", "#f0f", "#ff0", "#0f0",
-  "#0ff", "#f0f", "#ff0", "#0f0", "#0ff"
+  "#7ed6df", "#eccc68", "#ffb8b8", "#b8e994", "#f6e58d", "#dff9fb", "#f9ca24", "#f3a683",
+  "#f7d794", "#f5cd79", "#c7ecee", "#f8a5c2", "#63cdda", "#ea8685", "#f3a683", "#f7d794",
+  "#f5cd79", "#c7ecee", "#f8a5c2", "#63cdda", "#ea8685", "#f3a683", "#f7d794"
 ];
 let gap = 6;
+let thickness = 10;
 let baseRadius = circle.radius + gap;
-for (let i = 0; i < 25; i++) {
+for (let i = 0; i < 23; i++) {
   extraCircles.push({
-    radius: baseRadius + i * gap,
-    color: neonColors[i % neonColors.length],
-    glow: neonColors[i % neonColors.length],
-    angle: 0,
-    speed: 0.008 - i * 0.0002,
-    visible: true
+    radius: baseRadius + i * (gap + thickness), color: neonColors[i % neonColors.length],
+    glow: neonColors[i % neonColors.length], angle: 0, speed: 0.008 - i * 0.0002, visible: true
   });
 }
 
+let initialArcLength = 30;
+let maxArcLength = 200;
+let arcLength = initialArcLength;
+let arcGrowSpeed = 0.03;
+
+let shatterEffects = [];
+
+// --- SOUND FUNCTIONS ---
+function playHitSound() {
+    const time = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    const startFreq = 200 + Math.random() * 100;
+    osc.type = 'triangle';
+    gain.gain.setValueAtTime(0.3, time);
+    osc.frequency.setValueAtTime(startFreq, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(50, time + 0.15);
+
+    osc.start(time);
+    osc.stop(time + 0.2);
+}
+
+function playShatterSound() {
+    const time = audioContext.currentTime;
+    const boomOsc = audioContext.createOscillator();
+    const boomGain = audioContext.createGain();
+    boomOsc.connect(boomGain);
+    boomGain.connect(audioContext.destination);
+    boomOsc.type = 'sine';
+    boomGain.gain.setValueAtTime(0.5, time);
+    boomOsc.frequency.setValueAtTime(120, time);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+    boomOsc.frequency.exponentialRampToValueAtTime(30, time + 0.4);
+    boomOsc.start(time);
+    boomOsc.stop(time + 0.4);
+
+    const noiseBuffer = audioContext.createBuffer(1, 0.5 * audioContext.sampleRate, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < output.length; i++) { output[i] = Math.random() * 2 - 1; }
+    const noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    const noiseGain = audioContext.createGain();
+    noiseSource.connect(noiseGain);
+    noiseGain.connect(audioContext.destination);
+    noiseGain.gain.setValueAtTime(0.2, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+    noiseSource.start(time);
+    noiseSource.stop(time + 0.5);
+}
+
+function createShatterEffect(x, y, radius, color) {
+    // PERFORMANCE FIX: Reduced particle count to prevent lag spike on creation.
+    const particleCount = 100;
+    const particles = [];
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3.5 + 1; // Slightly faster for more impact
+        const life = Math.random() * 60 + 40;
+        particles.push({
+            x: x + Math.cos(angle) * radius, y: y + Math.sin(angle) * radius,
+            dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed,
+            life: life, initialLife: life,
+            size: Math.random() * 2.5 + 0.5, // Slightly larger for better visuals
+            color: color
+        });
+    }
+    shatterEffects.push({ particles: particles });
+}
+
 function randomBallPosition(radius, ballRadius) {
-  // Place randomly inside the main circle, not too close to the edge
   let r = Math.random() * (radius - ballRadius - 10);
   let theta = Math.random() * Math.PI * 2;
-  return {
-    x: Math.cos(theta) * r,
-    y: Math.sin(theta) * r
-  };
+  return { x: Math.cos(theta) * r, y: Math.sin(theta) * r };
 }
 
-let ball1 = {
-  ...randomBallPosition(circle.radius, 20),
-  radius: 20,
-  dx: parseFloat(speedInput.value),
-  dy: parseFloat(speedInput.value),
-  gravity: 0.1,
-  elasticity: 0.8,
-  useGravity: false,
-  useElasticity: false
-};
-
+let ball1 = { ...randomBallPosition(circle.radius, 10), radius: 10, dx: parseFloat(speedInput.value), dy: parseFloat(speedInput.value), gravity: 0.1, elasticity: 0.8, useGravity: false, useElasticity: false };
 let ball2;
 do {
-  ball2 = {
-    ...randomBallPosition(circle.radius, 20),
-    radius: 20,
-    dx: -parseFloat(speedInput.value),
-    dy: -parseFloat(speedInput.value),
-    gravity: 0.1,
-    elasticity: 0.8,
-    useGravity: false,
-    useElasticity: false
-  };
-  // Make sure balls don't overlap at start
-} while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < 40);
-
-function playSound(frequency = 440) {
-  let oscillator = audioContext.createOscillator();
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  oscillator.connect(audioContext.destination);
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.1);
-}
+  ball2 = { ...randomBallPosition(circle.radius, 10), radius: 10, dx: -parseFloat(speedInput.value), dy: -parseFloat(speedInput.value), gravity: 0.1, elasticity: 0.8, useGravity: false, useElasticity: false };
+} while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < 20);
 
 function updateScore() {
   score1Display.textContent = score1;
   score2Display.textContent = score2;
 }
 
-function isOnRedArc(ballX, ballY, circleObj, arcLength) {
+function isOnRedArc(ballX, ballY, circleObj, arcLengthParam) {
   let dist = Math.sqrt(ballX * ballX + ballY * ballY);
   if (Math.abs(dist - circleObj.radius) > 22) return false;
   let angle = Math.atan2(ballY, ballX);
   if (angle < 0) angle += Math.PI * 2;
-  let arcAngle = arcLength / circleObj.radius;
+  let arcAngle = arcLengthParam / circleObj.radius;
   let startAngle = circleObj.angle % (Math.PI * 2);
   let endAngle = (startAngle + arcAngle) % (Math.PI * 2);
-  if (startAngle < endAngle) {
-    return angle >= startAngle && angle <= endAngle;
-  } else {
-    return angle >= startAngle || angle <= endAngle;
-  }
+  if (startAngle < endAngle) return angle >= startAngle && angle <= endAngle;
+  else return angle >= startAngle || angle <= endAngle;
 }
 
-// Draw circles with the "red" (now invisible) arc missing, with neon glow
 function drawCircle() {
-  const arcLength = 100;
+  arcLength = Math.min(maxArcLength, arcLength + arcGrowSpeed);
   for (let c of extraCircles) {
     if (!c.visible) continue;
     let angle = arcLength / c.radius;
     let startAngle = c.angle;
     let endAngle = startAngle + angle;
-    // Neon glow for circles
     ctx.save();
+    ctx.lineCap = 'round';
     ctx.shadowColor = c.glow;
-    ctx.shadowBlur = 30;
+    ctx.shadowBlur = 20;
     ctx.beginPath();
     ctx.arc(circle.x, circle.y, c.radius, endAngle, startAngle + 2 * Math.PI, false);
     ctx.strokeStyle = c.color;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = thickness;
     ctx.stroke();
-    ctx.closePath();
     ctx.restore();
   }
-  if (circle.visible) {
-    let angle = arcLength / circle.radius;
-    let startAngle = circle.angle;
-    let endAngle = startAngle + angle;
-    ctx.save();
-    ctx.shadowColor = "#0ff";
-    ctx.shadowBlur = 40;
-    ctx.beginPath();
-    ctx.arc(circle.x, circle.y, circle.radius, endAngle, startAngle + 2 * Math.PI, false);
-    ctx.strokeStyle = "#0ff";
-    ctx.lineWidth = 6;
-    ctx.stroke();
-    ctx.closePath();
-    ctx.restore();
+  
+  for (let i = shatterEffects.length - 1; i >= 0; i--) {
+    const effect = shatterEffects[i];
+    for (let j = effect.particles.length - 1; j >= 0; j--) {
+        const p = effect.particles[j];
+        p.x += p.dx; p.y += p.dy;
+        p.dx *= 0.99; p.dy *= 0.99;
+        p.life--;
+        if (p.life <= 0) {
+            effect.particles.splice(j, 1);
+            continue;
+        }
+        const currentSize = p.size * (p.life / p.initialLife);
+        ctx.save();
+        ctx.globalAlpha = p.life / p.initialLife;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    if (effect.particles.length === 0) shatterEffects.splice(i, 1);
   }
 }
 
@@ -207,16 +250,11 @@ function drawBall(ball, color, glow) {
   ctx.shadowBlur = 40;
   ctx.fillStyle = color;
   ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.closePath();
   ctx.restore();
 }
 
-function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
-  const arcLength = 100;
-  if (ball.useGravity) {
-    ball.dy += ball.gravity;
-  }
+function updateBall(ball, extraCircles, circle, scoreRef) {
+  if (ball.useGravity) ball.dy += ball.gravity;
   ball.x += ball.dx;
   ball.y += ball.dy;
 
@@ -225,76 +263,44 @@ function updateBall(ball, extraCircles, circle, scoreRef, soundBase) {
     if (!c.visible) continue;
     let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
     if (isOnRedArc(ball.x, ball.y, c, arcLength)) {
+      createShatterEffect(circle.x, circle.y, c.radius, c.color);
       c.visible = false;
-      // Shrink ALL visible circles when one is destroyed
       for (let j = 0; j < extraCircles.length; j++) {
-        if (extraCircles[j].visible) {
-          extraCircles[j].radius = Math.max(extraCircles[j].radius - 10, 30);
-        }
+        if (extraCircles[j].visible) extraCircles[j].radius = Math.max(extraCircles[j].radius - 10, 30);
       }
-      playSound(soundBase + 300);
+      playShatterSound();
       scoreRef.value++;
       updateScore();
       continue;
     }
-    if (Math.abs(dist - c.radius) < ball.radius + 2) {
-      let nx = ball.x / dist;
-      let ny = ball.y / dist;
+    if (Math.abs(dist - c.radius) < ball.radius + thickness / 2) {
+      let nx = ball.x / dist; let ny = ball.y / dist;
       let dot = ball.dx * nx + ball.dy * ny;
       ball.dx -= 2 * dot * nx * (ball.useElasticity ? ball.elasticity : 1);
       ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
-      ball.x = nx * (c.radius - ball.radius - 0.1);
-      ball.y = ny * (c.radius - ball.radius - 0.1);
-      playSound(soundBase + Math.random() * 200);
-      return;
-    }
-  }
-
-  if (circle.visible) {
-    let dist = Math.sqrt(ball.x * ball.x + ball.y * ball.y);
-    if (isOnRedArc(ball.x, ball.y, circle, arcLength)) {
-      circle.visible = false;
-      playSound(soundBase + 500);
-      scoreRef.value++;
-      updateScore();
-      return;
-    }
-    if (dist + ball.radius > circle.radius) {
-      let nx = ball.x / dist;
-      let ny = ball.y / dist;
-      let dot = ball.dx * nx + ball.dy * ny;
-      ball.dx -= 2 * dot * nx * (ball.useElasticity ? ball.elasticity : 1);
-      ball.dy -= 2 * dot * ny * (ball.useElasticity ? ball.elasticity : 1);
-      ball.x = nx * (circle.radius - ball.radius - 0.1);
-      ball.y = ny * (circle.radius - ball.radius - 0.1);
-      playSound(soundBase + Math.random() * 200);
+      ball.x = nx * (c.radius - ball.radius - thickness / 2);
+      ball.y = ny * (c.radius - ball.radius - thickness / 2);
+      playHitSound();
       return;
     }
   }
 }
 
 function repelBalls(b1, b2) {
-  let dx = b2.x - b1.x;
-  let dy = b2.y - b1.y;
+  let dx = b2.x - b1.x, dy = b2.y - b1.y;
   let dist = Math.sqrt(dx * dx + dy * dy);
   let minDist = b1.radius + b2.radius;
   if (dist < minDist && dist > 0) {
     let overlap = minDist - dist + 0.1;
-    let nx = dx / dist;
-    let ny = dy / dist;
-    b1.x -= nx * overlap / 2;
-    b1.y -= ny * overlap / 2;
-    b2.x += nx * overlap / 2;
-    b2.y += ny * overlap / 2;
-    let dvx = b2.dx - b1.dx;
-    let dvy = b2.dy - b1.dy;
+    let nx = dx / dist, ny = dy / dist;
+    b1.x -= nx * overlap / 2; b1.y -= ny * overlap / 2;
+    b2.x += nx * overlap / 2; b2.y += ny * overlap / 2;
+    let dvx = b2.dx - b1.dx, dvy = b2.dy - b1.dy;
     let impact = dvx * nx + dvy * ny;
     if (impact < 0) {
-      let impulse = 2 * impact / 2;
-      b1.dx += impulse * nx;
-      b1.dy += impulse * ny;
-      b2.dx -= impulse * nx;
-      b2.dy -= impulse * ny;
+      let impulse = impact; // Simplified impulse for equal mass
+      b1.dx += impulse * nx; b1.dy += impulse * ny;
+      b2.dx -= impulse * nx; b2.dy -= impulse * ny;
     }
   }
 }
@@ -304,33 +310,19 @@ function draw() {
   ctx.save();
   ctx.translate(canvas.width / 2, canvas.height / 2);
   drawCircle();
-  drawBall(ball1, "#00f6ff", "#00f6ff"); // Neon blue
-  drawBall(ball2, "#ff0066", "#ff0066"); // Neon red
-  updateBall(ball1, extraCircles, circle, {get value(){return score1}, set value(v){score1=v}}, 400);
-  updateBall(ball2, extraCircles, circle, {get value(){return score2}, set value(v){score2=v}}, 600);
+  drawBall(ball1, "#00f6ff", "#00f6ff");
+  drawBall(ball2, "#ff0066", "#ff0066");
+  updateBall(ball1, extraCircles, circle, {get value(){return score1}, set value(v){score1=v}});
+  updateBall(ball2, extraCircles, circle, {get value(){return score2}, set value(v){score2=v}});
   repelBalls(ball1, ball2);
   ctx.restore();
-
   circle.angle += circle.speed;
-  for (let c of extraCircles) {
-    c.angle += c.speed;
-  }
-
+  for (let c of extraCircles) c.angle += c.speed;
   requestAnimationFrame(draw);
 }
 
-function toggleGravity(checked) {
-  ball1.useGravity = checked;
-  ball2.useGravity = checked;
-  checkDisabled();
-}
-
-function toggleElasticity(checked) {
-  ball1.useElasticity = checked;
-  ball2.useElasticity = checked;
-  checkDisabled();
-}
-
+function toggleGravity(checked) { ball1.useGravity = checked; ball2.useGravity = checked; checkDisabled(); }
+function toggleElasticity(checked) { ball1.useElasticity = checked; ball2.useElasticity = checked; checkDisabled(); }
 function checkDisabled() {
   if (!ball1.useGravity && !ball1.useElasticity) {
     speedInput.disabled = false;
@@ -339,34 +331,19 @@ function checkDisabled() {
     speedInput.value = Math.sqrt(ball1.dx * ball1.dx + ball1.dy * ball1.dy).toFixed(1);
   }
 }
-
 function updateSpeed(value) {
-  ball1.dx = parseFloat(value);
-  ball1.dy = parseFloat(value);
-  ball2.dx = -parseFloat(value);
-  ball2.dy = -parseFloat(value);
+  ball1.dx = parseFloat(value); ball1.dy = parseFloat(value);
+  ball2.dx = -parseFloat(value); ball2.dy = -parseFloat(value);
 }
-
 function resizeCanvas() {
-  const minSize = 900;
-  canvas.width = Math.max(window.innerWidth * 0.9, minSize);
-  canvas.height = Math.max(window.innerHeight * 0.9, minSize);
-  circle.x = 0;
-  circle.y = 0;
-  for (let ball of [ball1, ball2]) {
-    if (Math.sqrt(ball.x * ball.x + ball.y * ball.y) + ball.radius > circle.radius) {
-      let angle = Math.atan2(ball.y, ball.x);
-      ball.x = Math.cos(angle) * (circle.radius - ball.radius - 1);
-      ball.y = Math.sin(angle) * (circle.radius - ball.radius - 1);
-    }
-  }
+  const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+  canvas.width = size;
+  canvas.height = size;
 }
 
-resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-
+resizeCanvas();
 updateScore();
-
 draw();
 </script>
 </body>

@@ -29,7 +29,7 @@
     }
 
     /* --- UI Panel Styling --- */
-    .player-ui, #controlsContainer {
+    .player-ui {
       position: absolute;
       background: rgba(0, 0, 0, 0.5);
       border-radius: 10px;
@@ -50,12 +50,6 @@
       box-shadow: 0 0 10px #ff0066;
       text-align: right;
     }
-
-    #controlsContainer {
-      bottom: 20px;
-      left: 20px;
-      box-shadow: 0 0 10px #0ff;
-    }
     
     .player-title {
       font-size: 1.3em;
@@ -75,6 +69,17 @@
     .data-line:not(:last-child) { margin-bottom: 4px; }
     label, input, .comboDisplay { color: #fff; text-shadow: 0 0 4px #fff; }
     
+    /* --- Controls are now outside the game frame --- */
+    #controlsContainer {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 10px 15px;
+      z-index: 20;
+      box-shadow: 0 0 10px #0ff;
+    }
     .control-item {
       display: flex;
       justify-content: space-between;
@@ -85,6 +90,19 @@
     input[type="number"] { background: #222; color: #0ff; border: 1px solid #0ff; border-radius: 5px; padding: 2px 6px; font-size: 1em; box-shadow: 0 0 6px #0ff inset; font-family: 'Exo 2', sans-serif; width: 50px; }
     .comboDisplay { margin-top: 5px; font-size: 1.1em; height: 1.3em; color: #ffc400; text-shadow: 0 0 8px #ffc400; font-weight: bold; }
     
+    #remainingCirclesDisplay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 8em;
+        font-weight: 900;
+        color: rgba(255, 255, 255, 0.15);
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        pointer-events: none;
+        z-index: 5;
+    }
+
     /* --- Popups and Intro Screen (remain relative to viewport) --- */
     #comboPopup { position: fixed; top: 50%; left: 50%; font-size: 5em; font-weight: 900; color: rgba(255, 255, 255, 0.5); text-shadow: 0 0 15px #fff, 0 0 30px #fff; opacity: 0; transform: translate(-50%, -50%) scale(1); pointer-events: none; z-index: 110; }
     #comboPopup.show { animation: combo-animation 1s forwards; }
@@ -122,6 +140,7 @@
 
 <div id="gameContainer">
     <canvas id="canvas"></canvas>
+    <div id="remainingCirclesDisplay"></div>
 
     <!-- Player 1 (Blue) UI - Top Left of Canvas -->
     <div id="player1UI" class="player-ui">
@@ -146,22 +165,22 @@
         </div>
         <div id="combo2" class="comboDisplay"></div>
     </div>
+</div>
 
-    <!-- Controls UI - Bottom Left of Canvas -->
-    <div id="controlsContainer">
-      <div class="control-item">
-        <label for="speed">Speed:</label>
-        <input type="number" id="speed" value="3" step="0.1" onchange="updateSpeed(this.value);" disabled>
-      </div>
-      <div class="control-item">
-        <label for="gravityToggle">Gravity</label>
-        <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
-      </div>
-      <div class="control-item">
-        <label for="elasticityToggle">Elasticity</label>
-        <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
-      </div>
-    </div>
+<!-- Controls UI - Placed outside the game container -->
+<div id="controlsContainer">
+  <div class="control-item">
+    <label for="speed">Speed:</label>
+    <input type="number" id="speed" value="3" step="0.1" onchange="updateSpeed(this.value);" disabled>
+  </div>
+  <div class="control-item">
+    <label for="gravityToggle">Gravity</label>
+    <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
+  </div>
+  <div class="control-item">
+    <label for="elasticityToggle">Elasticity</label>
+    <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
+  </div>
 </div>
 
 <div id="comboPopup"></div>
@@ -179,6 +198,7 @@ const combo2Display = document.getElementById('combo2');
 let comboPopup = document.getElementById('comboPopup');
 const introScreen = document.getElementById('introScreen');
 const countdownTimer = document.getElementById('countdownTimer');
+const remainingCirclesDisplay = document.getElementById('remainingCirclesDisplay');
 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -210,6 +230,8 @@ function initializeGame() {
         extraCircles.push({ radius: rad, targetRadius: rad, color: neonColors[i % neonColors.length], glow: neonColors[i % neonColors.length], angle: 0, speed: 0.008 - i * 0.0002, visible: true });
     }
     
+    updateRemainingCirclesCount(); // Initial count
+
     ball1 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: 3, dy: 3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#00f6ff', glow: '#00f6ff', trailColor: '#00aaff' };
     ball2 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: -3, dy: -3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#ff0066', glow: '#ff0066', trailColor: '#dd0055' };
     
@@ -231,6 +253,10 @@ function drawGameElements(){arcLength=Math.min(maxArcLength,arcGrowSpeed+arcLeng
 function drawBall(b){ctx.save();if(b.trail.length>1){ctx.lineCap='round';ctx.lineJoin='round';for(let i=1;i<b.trail.length;i++){const p1=b.trail[i],p0=b.trail[i-1],s=i/b.trail.length;ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.strokeStyle=b.trailColor;ctx.lineWidth=b.radius*2*s;ctx.globalAlpha=s*.7;ctx.stroke()}}ctx.globalAlpha=1;ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.shadowColor=b.glow;ctx.shadowBlur=30;ctx.fillStyle=b.color;ctx.fill();ctx.restore()}
 function emitFlameParticles(b){if(b.comboCount<2)return;const speed=Math.hypot(b.dx,b.dy);if(speed===0)return;const baseDirX=-b.dx/speed,baseDirY=-b.dy/speed,intensity=Math.min(b.comboCount,5);for(let i=0;i<intensity;i++){const s=(Math.random()-.5)*.8,ps=Math.random()*2+1,pdx=baseDirX+baseDirY*s,pdy=baseDirY-baseDirX*s;b.flameParticles.push({x:b.x+baseDirX*b.radius,y:b.y+baseDirY*b.radius,dx:pdx*ps,dy:pdy*ps,life:Math.random()*20+20,initialLife:40,size:Math.random()*3+1,color:b.trailColor})}}
 function updateAndDrawFlames(){[ball1,ball2].forEach(b=>{for(let i=b.flameParticles.length-1;i>=0;i--){let p=b.flameParticles[i];p.x+=p.dx;p.y+=p.dy;p.life--;if(p.life<=0){b.flameParticles.splice(i,1);continue}const lr=p.life/p.initialLife;ctx.beginPath();ctx.arc(p.x,p.y,p.size*lr,0,Math.PI*2);ctx.globalAlpha=lr*.8;ctx.fillStyle=lr>.8?'#fff':p.color;ctx.fill()}});ctx.globalAlpha=1}
+function updateRemainingCirclesCount() {
+    const remaining = extraCircles.filter(c => c.visible).length;
+    remainingCirclesDisplay.textContent = remaining;
+}
 
 function updateBall(b, opponent, scoreRef) {
     if (entryAnimation.progress < entryAnimation.duration) return;
@@ -240,6 +266,7 @@ function updateBall(b, opponent, scoreRef) {
         if (!c.visible) continue;
         if (isOnRedArc(b.x, b.y, c, arcLength, b.radius)) {
             c.visible = false;
+            updateRemainingCirclesCount(); // Update count when a circle is destroyed
             b.comboCount++;
             opponent.comboCount = 0;
             combo1Display.textContent = ball1.comboCount > 1 ? `x${ball1.comboCount} Combo!` : '';
@@ -289,14 +316,30 @@ function toggleElasticity(c){ball1.useElasticity=c;ball2.useElasticity=c;checkDi
 function checkDisabled(){if(!ball1.useGravity&&!ball1.useElasticity){document.getElementById("speed").disabled=false}else{const e=document.getElementById("speed");e.disabled=true,e.value=Math.sqrt(ball1.dx*ball1.dx+ball1.dy*ball1.dy).toFixed(1)}}
 function updateSpeed(v){const p=parseFloat(v);ball1.dx=p;ball1.dy=p;ball2.dx=-p;ball2.dy=-p}
 function resizeCanvas() {
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    const aspectRatio = 9 / 16;
+    const padding = 0.95;
+
+    let canvasHeight = window.innerHeight * padding;
+    let canvasWidth = canvasHeight * aspectRatio;
+
+    // If the calculated width is too wide for the screen, adjust based on the screen width instead.
+    if (canvasWidth > window.innerWidth * padding) {
+        canvasWidth = window.innerWidth * padding;
+        canvasHeight = canvasWidth / aspectRatio;
+    }
+
     const dpr = window.devicePixelRatio || 1;
-    gameContainer.style.width = `${size}px`;
-    gameContainer.style.height = `${size}px`;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
+    
+    // Set the size for the container and the canvas style
+    gameContainer.style.width = `${canvasWidth}px`;
+    gameContainer.style.height = `${canvasHeight}px`;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    
+    // Set the actual resolution of the canvas
+    canvas.width = canvasWidth * dpr;
+    canvas.height = canvasHeight * dpr;
+    
     ctx.scale(dpr, dpr);
 }
 function updateSpeedDisplay(){speed1Display.textContent=Math.hypot(ball1.dx,ball1.dy).toFixed(1);speed2Display.textContent=Math.hypot(ball2.dx,ball2.dy).toFixed(1)}

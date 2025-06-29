@@ -3,86 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <title>Bouncing Ball in a Circle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     body {
       background: radial-gradient(circle at top, #11182A, #070a13);
       overflow: hidden;
       margin: 0;
+      font-family: 'Exo 2', 'Segoe UI', 'Helvetica Neue', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #gameContainer {
+      position: relative;
+      /* The size is determined by the canvas via JS */
     }
     canvas {
       background: radial-gradient(circle at center, #1c2a4f, #070a13 70%);
-      display: block;
-      margin: 0 auto;
+      display: block; /* Important for the container to size correctly */
       box-shadow: 0 0 60px #0ff, 0 0 120px #00f;
       border-radius: 20px;
     }
-    #scoreDisplay, label, input {
-      color: #fff;
-      text-shadow: 0 0 8px #0ff, 0 0 4px #fff;
-      font-weight: bold;
-    }
-    #scoreDisplay {
-      font-size: 1.7em;
-      margin-top: 10px;
-      letter-spacing: 1px;
-      background: rgba(0,0,0,0.4);
+
+    /* --- UI Panel Styling --- */
+    .player-ui, #controlsContainer {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.5);
       border-radius: 10px;
-      padding: 6px 18px;
-      display: inline-block;
+      padding: 10px 15px;
+      z-index: 10;
+    }
+    
+    #player1UI {
+      top: 20px;
+      left: 20px;
+      box-shadow: 0 0 10px #00f6ff;
+      text-align: left;
+    }
+
+    #player2UI {
+      top: 20px;
+      right: 20px;
+      box-shadow: 0 0 10px #ff0066;
+      text-align: right;
+    }
+
+    #controlsContainer {
+      bottom: 20px;
+      left: 20px;
       box-shadow: 0 0 10px #0ff;
     }
-    input[type="number"] {
-      background: #222;
-      color: #0ff;
-      border: 1px solid #0ff;
-      border-radius: 5px;
-      padding: 2px 6px;
-      font-size: 1em;
-      box-shadow: 0 0 6px #0ff inset;
+    
+    .player-title {
+      font-size: 1.3em;
+      font-weight: 900;
+      margin-bottom: 8px;
+      text-shadow: 0 0 8px currentColor;
+      letter-spacing: 1px;
     }
+
+    .data-line { 
+      font-size: 1.2em; 
+      font-weight: bold; 
+      letter-spacing: 1px; 
+      color: #fff;
+      text-shadow: 0 0 5px rgba(255,255,255,0.7);
+    }
+    .data-line:not(:last-child) { margin-bottom: 4px; }
+    label, input, .comboDisplay { color: #fff; text-shadow: 0 0 4px #fff; }
+    
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-width: 130px;
+    }
+    .control-item:not(:last-child) { margin-bottom: 8px; }
+    input[type="number"] { background: #222; color: #0ff; border: 1px solid #0ff; border-radius: 5px; padding: 2px 6px; font-size: 1em; box-shadow: 0 0 6px #0ff inset; font-family: 'Exo 2', sans-serif; width: 50px; }
+    .comboDisplay { margin-top: 5px; font-size: 1.1em; height: 1.3em; color: #ffc400; text-shadow: 0 0 8px #ffc400; font-weight: bold; }
+    
+    /* --- Popups and Intro Screen (remain relative to viewport) --- */
+    #comboPopup { position: fixed; top: 50%; left: 50%; font-size: 5em; font-weight: 900; color: rgba(255, 255, 255, 0.5); text-shadow: 0 0 15px #fff, 0 0 30px #fff; opacity: 0; transform: translate(-50%, -50%) scale(1); pointer-events: none; z-index: 110; }
+    #comboPopup.show { animation: combo-animation 1s forwards; }
+    #introScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; flex-direction: column; z-index: 100; opacity: 0; animation: fade-in 0.5s forwards; }
+    .intro-vs-container { display: flex; align-items: center; gap: 50px; }
+    .player-card { padding: 20px; border-radius: 15px; background: rgba(255, 255, 255, 0.1); text-align: center; width: 200px; }
+    .player-card.blue { border: 2px solid #00f6ff; box-shadow: 0 0 20px #00f6ff; }
+    .player-card.red { border: 2px solid #ff0066; box-shadow: 0 0 20px #ff0066; }
+    .player-icon { width: 80px; height: 80px; }
+    .player-name { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
+    .vs-text { font-size: 4em; font-weight: 900; color: #fff; text-shadow: 0 0 10px #fff; }
+    #countdownTimer { font-size: 10em; font-weight: 900; color: #fff; margin-top: 40px; animation: countdown-pulse 1s infinite; }
+    @keyframes fade-in { to { opacity: 1; } }
+    @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes countdown-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    @keyframes combo-animation { 0% { transform: translate(-50%,-50%) scale(0.8); opacity: 0; } 15% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; } 30% { transform: translate(-50%,-50%) scale(1); opacity: 1; } 85% { transform: translate(-50%,-50%) scale(1); opacity: 1; } 100% { transform: translate(-50%,-50%) scale(0.8); opacity: 0; } }
   </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
 
-<div style="text-align:center;">
-  <label for="speed">Speed:</label>
-  <input type="number" id="speed" value="3" step="0.1" onchange="updateSpeed(this.value);" disabled>
-  <br>
-  <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
-  <label for="gravityToggle">Gravity</label>
-  <br>
-  <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
-  <label for="elasticityToggle">Elasticity</label>
-  <br>
-  <div id="scoreDisplay">
-    <span style="color:#00f6ff;text-shadow:0 0 8px #00f6ff;">Blue</span>: <span id="score1">0</span>
-    |
-    <span style="color:#ff0066;text-shadow:0 0 8px #ff0066;">Red</span>: <span id="score2">0</span>
+<div id="introScreen">
+  <div class="intro-vs-container">
+    <div class="player-card blue">
+      <svg class="player-icon" style="color: #00f6ff;" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>
+      <div class="player-name" style="color: #00f6ff; text-shadow: 0 0 10px #00f6ff;">BLUE PLAYER</div>
+    </div>
+    <div class="vs-text">VS</div>
+    <div class="player-card red">
+      <svg class="player-icon" style="color: #ff0066;" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>
+      <div class="player-name" style="color: #ff0066; text-shadow: 0 0 10px #ff0066;">RED PLAYER</div>
+    </div>
   </div>
+  <div id="countdownTimer">3</div>
 </div>
+
+<div id="gameContainer">
+    <canvas id="canvas"></canvas>
+
+    <!-- Player 1 (Blue) UI - Top Left of Canvas -->
+    <div id="player1UI" class="player-ui">
+        <div class="player-title" style="color:#00f6ff;">BLUE</div>
+        <div class="data-line">
+            <span>Score:</span> <span id="score1">0</span>
+        </div>
+        <div class="data-line">
+            <span>Speed:</span> <span id="speed1">0.0</span>
+        </div>
+        <div id="combo1" class="comboDisplay"></div>
+    </div>
+
+    <!-- Player 2 (Red) UI - Top Right of Canvas -->
+    <div id="player2UI" class="player-ui">
+        <div class="player-title" style="color:#ff0066;">RED</div>
+        <div class="data-line">
+            <span>Score:</span> <span id="score2">0</span>
+        </div>
+        <div class="data-line">
+            <span>Speed:</span> <span id="speed2">0.0</span>
+        </div>
+        <div id="combo2" class="comboDisplay"></div>
+    </div>
+
+    <!-- Controls UI - Bottom Left of Canvas -->
+    <div id="controlsContainer">
+      <div class="control-item">
+        <label for="speed">Speed:</label>
+        <input type="number" id="speed" value="3" step="0.1" onchange="updateSpeed(this.value);" disabled>
+      </div>
+      <div class="control-item">
+        <label for="gravityToggle">Gravity</label>
+        <input type="checkbox" id="gravityToggle" onchange="toggleGravity(this.checked);">
+      </div>
+      <div class="control-item">
+        <label for="elasticityToggle">Elasticity</label>
+        <input type="checkbox" id="elasticityToggle" onchange="toggleElasticity(this.checked);">
+      </div>
+    </div>
+</div>
+
+<div id="comboPopup"></div>
 
 <script>
 const canvas = document.getElementById('canvas');
+const gameContainer = document.getElementById('gameContainer');
 const ctx = canvas.getContext('2d');
 const score1Display = document.getElementById('score1');
 const score2Display = document.getElementById('score2');
+const speed1Display = document.getElementById('speed1');
+const speed2Display = document.getElementById('speed2');
+const combo1Display = document.getElementById('combo1');
+const combo2Display = document.getElementById('combo2');
+let comboPopup = document.getElementById('comboPopup');
+const introScreen = document.getElementById('introScreen');
+const countdownTimer = document.getElementById('countdownTimer');
+
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 let score1, score2, circle, extraCircles, ball1, ball2;
-let arcLength, isGameOver, shockwaves;
+let arcLength, shockwaves;
+let screenShake, entryAnimation, gameState;
 
-const neonColors = [ "#7ed6df", "#eccc68", "#ffb8b8", "#b8e994", "#f6e58d", "#dff9fb", "#f9ca24", "#f3a683", "#f7d794", "#f5cd79", "#c7ecee", "#f8a5c2", "#63cdda", "#ea8685", "#f3a683", "#f7d794" ];
+const neonColors = [ "#F72585", "#B5179E", "#7209B7", "#560BAD", "#480CA8", "#3A0CA3", "#3F37C9", "#4361EE", "#4895EF", "#4CC9F0" ];
 const initialArcLength = 30, maxArcLength = 200, arcGrowSpeed = 0.03;
 const SHRINK_RATE = 0.03, MIN_RADIUS = 30;
-
-// NOUVEAU : Constantes pour l'effet d'ondulation
-const RIPPLE_SPEED = 5;
-const RIPPLE_LINE_WIDTH = 2.5;
+const RIPPLE_SPEED = 5, RIPPLE_LINE_WIDTH = 2.5;
+const START_RADIUS = 15;
+const TRAIL_LENGTH = 20;
 
 function initializeGame() {
+    gameState = 'playing';
     isGameOver = false; score1 = 0; score2 = 0; updateScore();
     shockwaves = [];
+    screenShake = { duration: 0, magnitude: 0 };
+    combo1Display.textContent = ''; combo2Display.textContent = '';
+    entryAnimation = { progress: 0, duration: 60 };
+    
     circle = { x: 0, y: 0, radius: 200, angle: 0, speed: 0.01, visible: false };
     extraCircles = []; arcLength = initialArcLength;
 
@@ -92,138 +210,165 @@ function initializeGame() {
         extraCircles.push({ radius: rad, targetRadius: rad, color: neonColors[i % neonColors.length], glow: neonColors[i % neonColors.length], angle: 0, speed: 0.008 - i * 0.0002, visible: true });
     }
     
-    const startRadius = 10;
-    ball1 = { ...randomBallPosition(circle.radius, startRadius), radius: startRadius, targetRadius: startRadius, dx: 3, dy: 3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8 };
-    do {
-        ball2 = { ...randomBallPosition(circle.radius, startRadius), radius: startRadius, targetRadius: startRadius, dx: -3, dy: -3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8 };
-    } while (Math.hypot(ball1.x - ball2.x, ball1.y - ball2.y) < startRadius * 2);
+    ball1 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: 3, dy: 3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#00f6ff', glow: '#00f6ff', trailColor: '#00aaff' };
+    ball2 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: -3, dy: -3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#ff0066', glow: '#ff0066', trailColor: '#dd0055' };
+    
+    ball1.startX=0; ball1.startY=0; ball1.endX=randomBallPosition(circle.radius,START_RADIUS).x; ball1.endY=randomBallPosition(circle.radius,START_RADIUS).y;
+    ball2.startX=0; ball2.startY=0; ball2.endX=randomBallPosition(circle.radius,START_RADIUS).x; ball2.endY=randomBallPosition(circle.radius,START_RADIUS).y;
+    ball1.x=ball1.startX; ball1.y=ball1.startY; ball2.x=ball2.startX; ball2.y=ball2.startY;
 }
 
-// (Les fonctions de son et les fonctions utilitaires sont minifiées)
 function playHitSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination);const n=200+100*Math.random();o.type="triangle",a.gain.setValueAtTime(.3,t),o.frequency.setValueAtTime(n,t),a.gain.exponentialRampToValueAtTime(.001,t+.2),o.frequency.exponentialRampToValueAtTime(50,t+.15),o.start(t),o.stop(t+.2)}
 function playShatterSound(){const t=audioContext.currentTime,o=audioContext.createOscillator(),a=audioContext.createGain();o.connect(a),a.connect(audioContext.destination),o.type="sine",a.gain.setValueAtTime(.5,t),o.frequency.setValueAtTime(120,t),a.gain.exponentialRampToValueAtTime(.001,t+.4),o.frequency.exponentialRampToValueAtTime(30,t+.4),o.start(t),o.stop(t+.4);const n=audioContext.createBuffer(1,.5*audioContext.sampleRate,audioContext.sampleRate),e=n.getChannelData(0);for(let c=0;c<e.length;c++)e[c]=2*Math.random()-1;const i=audioContext.createBufferSource();i.buffer=n;const s=audioContext.createGain();i.connect(s),s.connect(audioContext.destination),s.gain.setValueAtTime(.2,t),s.gain.exponentialRampToValueAtTime(.001,t+.3),i.start(t),i.stop(t+.5)}
 function randomBallPosition(r,br){let a=Math.random()*(r-br-10),t=Math.random()*Math.PI*2;return{x:Math.cos(t)*a,y:Math.sin(t)*a}}
 function updateScore(){score1Display.textContent=score1;score2Display.textContent=score2}
-function isOnRedArc(bx,by,co,al){let d=Math.hypot(bx,by);if(Math.abs(d-co.radius)>22)return false;let a=Math.atan2(by,bx);if(a<0)a+=Math.PI*2;let aa=al/co.radius,sa=co.angle%(Math.PI*2),ea=(sa+aa)%(Math.PI*2);return sa<ea?a>=sa&&a<=ea:a>=sa||a<=ea}
+function isOnRedArc(bx,by,co,al,ballRadius){let d=Math.hypot(bx,by);if(Math.abs(d-co.radius)>ballRadius+5){return false}let a=Math.atan2(by,bx);if(a<0)a+=Math.PI*2;let aa=al/co.radius,sa=co.angle%(Math.PI*2),ea=(sa+aa)%(Math.PI*2);return sa<ea?a>=sa&&a<=ea:a>=sa||a<=ea}
 function updateCircleAnimations(){for(const c of extraCircles){if(Math.abs(c.radius-c.targetRadius)>0.1){c.radius+=(c.targetRadius-c.radius)*0.1}else{c.radius=c.targetRadius}}}
 function updateBallAnimations(){if(Math.abs(ball1.radius-ball1.targetRadius)>0.05)ball1.radius+=(ball1.targetRadius-ball1.radius)*0.1;if(Math.abs(ball2.radius-ball2.targetRadius)>0.05)ball2.radius+=(ball2.targetRadius-ball2.radius)*0.1}
 function shrinkCirclesOverTime(){for(const c of extraCircles){if(c.visible){c.targetRadius=Math.max(c.targetRadius-SHRINK_RATE,MIN_RADIUS)}}}
+function updateAndDrawRipples(){for(let i=shockwaves.length-1;i>=0;i--){const r=shockwaves[i];r.radius+=r.speed;if(r.radius>r.maxRadius){shockwaves.splice(i,1);continue}const p=r.radius/r.maxRadius,a=1-p;ctx.save();ctx.strokeStyle=r.color;ctx.lineWidth=RIPPLE_LINE_WIDTH;ctx.globalAlpha=a;ctx.shadowColor=r.color;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(0,0,r.radius,0,Math.PI*2);ctx.stroke();ctx.restore()}}
+function drawGameElements(){arcLength=Math.min(maxArcLength,arcGrowSpeed+arcLength);const pulse=(Math.sin(Date.now()/500)+1)/2*10+10;ctx.shadowBlur=pulse;for(let c of extraCircles){if(!c.visible)continue;let a=arcLength/c.radius,sa=c.angle,ea=sa+a;ctx.save();ctx.lineCap='round';ctx.shadowColor=c.glow;ctx.beginPath();ctx.arc(0,0,c.radius,ea,sa+2*Math.PI,false);ctx.strokeStyle=c.color;ctx.lineWidth=10;ctx.stroke();ctx.restore()}}
+function drawBall(b){ctx.save();if(b.trail.length>1){ctx.lineCap='round';ctx.lineJoin='round';for(let i=1;i<b.trail.length;i++){const p1=b.trail[i],p0=b.trail[i-1],s=i/b.trail.length;ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.strokeStyle=b.trailColor;ctx.lineWidth=b.radius*2*s;ctx.globalAlpha=s*.7;ctx.stroke()}}ctx.globalAlpha=1;ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.shadowColor=b.glow;ctx.shadowBlur=30;ctx.fillStyle=b.color;ctx.fill();ctx.restore()}
+function emitFlameParticles(b){if(b.comboCount<2)return;const speed=Math.hypot(b.dx,b.dy);if(speed===0)return;const baseDirX=-b.dx/speed,baseDirY=-b.dy/speed,intensity=Math.min(b.comboCount,5);for(let i=0;i<intensity;i++){const s=(Math.random()-.5)*.8,ps=Math.random()*2+1,pdx=baseDirX+baseDirY*s,pdy=baseDirY-baseDirX*s;b.flameParticles.push({x:b.x+baseDirX*b.radius,y:b.y+baseDirY*b.radius,dx:pdx*ps,dy:pdy*ps,life:Math.random()*20+20,initialLife:40,size:Math.random()*3+1,color:b.trailColor})}}
+function updateAndDrawFlames(){[ball1,ball2].forEach(b=>{for(let i=b.flameParticles.length-1;i>=0;i--){let p=b.flameParticles[i];p.x+=p.dx;p.y+=p.dy;p.life--;if(p.life<=0){b.flameParticles.splice(i,1);continue}const lr=p.life/p.initialLife;ctx.beginPath();ctx.arc(p.x,p.y,p.size*lr,0,Math.PI*2);ctx.globalAlpha=lr*.8;ctx.fillStyle=lr>.8?'#fff':p.color;ctx.fill()}});ctx.globalAlpha=1}
 
-// NOUVEAU : Fonction redéfinie pour l'effet d'ondulation
-function updateAndDrawRipples() {
-    for (let i = shockwaves.length - 1; i >= 0; i--) {
-        const ripple = shockwaves[i];
-        
-        // Mettre à jour le rayon
-        ripple.radius += RIPPLE_SPEED;
-
-        // La supprimer si elle est sortie de l'écran
-        if (ripple.radius > ripple.maxRadius) {
-            shockwaves.splice(i, 1);
+function updateBall(b, opponent, scoreRef) {
+    if (entryAnimation.progress < entryAnimation.duration) return;
+    b.x += b.dx; b.y += b.dy;
+    for (let i = extraCircles.length - 1; i >= 0; i--) {
+        let c = extraCircles[i];
+        if (!c.visible) continue;
+        if (isOnRedArc(b.x, b.y, c, arcLength, b.radius)) {
+            c.visible = false;
+            b.comboCount++;
+            opponent.comboCount = 0;
+            combo1Display.textContent = ball1.comboCount > 1 ? `x${ball1.comboCount} Combo!` : '';
+            combo2Display.textContent = ball2.comboCount > 1 ? `x${ball2.comboCount} Combo!` : '';
+            
+            if (b.comboCount > 1) {
+                const newPopup = comboPopup.cloneNode(true);
+                newPopup.textContent = `x${b.comboCount}`;
+                comboPopup.parentNode.replaceChild(newPopup, comboPopup);
+                comboPopup = newPopup;
+                comboPopup.classList.add('show');
+            }
+            
+            const rippleSpeed = RIPPLE_SPEED + b.comboCount;
+            shockwaves.push({ radius: c.radius, color: c.color, maxRadius: Math.hypot(canvas.width / 2, canvas.height / 2), speed: rippleSpeed });
+            triggerScreenShake(3 + b.comboCount, 8);
+            for (const oc of extraCircles) { if (oc.visible) oc.targetRadius = Math.max(oc.radius - 10, 30) }
+            setTimeout(() => { playShatterSound() }, 0);
+            scoreRef.value++;
+            b.targetRadius = START_RADIUS + scoreRef.value * 0.5;
+            updateScore();
             continue;
         }
-
-        // Calculer la progression de 0 (centre) à 1 (bord)
-        const progress = ripple.radius / ripple.maxRadius;
-        
-        // L'opacité diminue à mesure que la vague s'étend
-        const alpha = 1 - progress;
-
-        // Dessiner l'ondulation
-        ctx.save();
-        ctx.strokeStyle = ripple.color;
-        ctx.lineWidth = RIPPLE_LINE_WIDTH;
-        ctx.globalAlpha = alpha;
-        ctx.shadowColor = ripple.color;
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(0, 0, ripple.radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-    }
-}
-
-function drawGameElements(){
-    arcLength=Math.min(maxArcLength,arcLength+arcGrowSpeed);
-    for(let c of extraCircles){
-        if(!c.visible)continue;
-        let a=arcLength/c.radius,sa=c.angle,ea=sa+a;
-        ctx.save();ctx.lineCap='round';ctx.shadowColor=c.glow;ctx.shadowBlur=20;
-        ctx.beginPath();ctx.arc(0,0,c.radius,ea,sa+2*Math.PI,false);
-        ctx.strokeStyle=c.color;ctx.lineWidth=10;ctx.stroke();ctx.restore();
-    }
-}
-
-function drawBall(b,c,g){ctx.save();ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.shadowColor=g;ctx.shadowBlur=40;ctx.fillStyle=c;ctx.fill();ctx.restore()}
-
-function updateBall(b,sr,sc){
-    if(b.useGravity)b.dy+=b.gravity;
-    b.x+=b.dx;b.y+=b.dy;
-    for(let i=extraCircles.length-1;i>=0;i--){
-        let c=extraCircles[i];
-        if(!c.visible)continue;
-        if(isOnRedArc(b.x,b.y,c,arcLength)){
-            c.visible=false;
-            // NOUVEAU : Créer une ondulation lors de la destruction
-            shockwaves.push({
-                radius: c.radius,
-                color: c.color,
-                // Le rayon maximum est la distance du centre au coin du canvas
-                maxRadius: Math.hypot(canvas.width / 2, canvas.height / 2)
-            });
-            for(const oc of extraCircles){if(oc.visible)oc.targetRadius=Math.max(oc.radius-10,30)}
-            setTimeout(()=>{playShatterSound()},0);
-            sr.value++;b.targetRadius=10+sr.value*0.5;updateScore();continue;
-        }
-        let d=Math.hypot(b.x,b.y);
-        if(Math.abs(d-c.radius)<b.radius+5){
-            let nx=b.x/d,ny=b.y/d,dot=b.dx*nx+b.dy*ny;
-            b.dx-=2*dot*nx*(b.useElasticity?b.elasticity:1);
-            b.dy-=2*dot*ny*(b.useElasticity?b.elasticity:1);
-            b.x=nx*(c.radius-b.radius-5);b.y=ny*(c.radius-b.radius-5);
-            playHitSound();return;
+        let d = Math.hypot(b.x, b.y);
+        if (Math.abs(d - c.radius) < b.radius + 5) {
+            let nx = b.x / d, ny = b.y / d, dot = b.dx * nx + b.dy * ny;
+            b.dx -= 2 * dot * nx * (b.useElasticity ? b.elasticity : 1);
+            b.dy -= 2 * dot * ny * (b.useElasticity ? b.elasticity : 1);
+            b.x = nx * (c.radius - b.radius - 5);
+            b.y = ny * (c.radius - b.radius - 5);
+            playHitSound();
+            return;
         }
     }
 }
 
-// (Le reste des fonctions est minifié)
+function updateTrails(){ball1.trail.push({x:ball1.x,y:ball1.y});if(ball1.trail.length>TRAIL_LENGTH)ball1.trail.shift();ball2.trail.push({x:ball2.x,y:ball2.y});if(ball2.trail.length>TRAIL_LENGTH)ball2.trail.shift()}
 function repelBalls(b1,b2){let dx=b2.x-b1.x,dy=b2.y-b1.y,dist=Math.sqrt(dx*dx+dy*dy),minDist=b1.radius+b2.radius;if(dist<minDist&&dist>0){let o=minDist-dist+0.1,nx=dx/dist,ny=dy/dist;b1.x-=nx*o/2;b1.y-=ny*o/2;b2.x+=nx*o/2;b2.y+=ny*o/2;let dvx=b2.dx-b1.dx,dvy=b2.dy-b1.dy,i=dvx*nx+dvy*ny;if(i<0){b1.dx+=i*nx;b1.dy+=i*ny;b2.dx-=i*nx;b2.dy-=i*ny}}}
-function checkWinCondition(){if(extraCircles.every(c=>!c.visible)&&!isGameOver){isGameOver=true;setTimeout(initializeGame,5000)}}
-function drawGameOverScreen(){ctx.save();ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);ctx.fillStyle="#fff";ctx.textAlign='center';ctx.font="bold 60px sans-serif";ctx.shadowColor="#0ff";ctx.shadowBlur=20;let wt;if(score1>score2){wt="Blue Player Wins!";ctx.shadowColor="#00f6ff"}else if(score2>score1){wt="Red Player Wins!";ctx.shadowColor="#ff0066"}else{wt="It's a Tie!"}ctx.fillText("GAME OVER",0,-20);ctx.font="bold 40px sans-serif",ctx.fillText(wt,0,40),ctx.font="20px sans-serif",ctx.shadowBlur=10,ctx.fillText("Restarting...",0,100),ctx.restore()}
+function handleEntryAnimation(){if(entryAnimation.progress>=entryAnimation.duration)return;entryAnimation.progress++;const p=entryAnimation.progress/entryAnimation.duration;ball1.x=ball1.startX+(ball1.endX-ball1.startX)*p;ball1.y=ball1.startY+(ball1.endY-ball1.startY)*p;ball2.x=ball2.startX+(ball2.endX-ball2.startX)*p;ball2.y=ball2.startY+(ball2.endY-ball2.startY)*p;ball1.radius=START_RADIUS*p;ball2.radius=START_RADIUS*p}
+function triggerScreenShake(magnitude,duration){screenShake.magnitude=magnitude;screenShake.duration=duration}
+function updateAndDrawScreenShake(){if(screenShake.duration>0){screenShake.duration--;const x=Math.random()*screenShake.magnitude*2-screenShake.magnitude;const y=Math.random()*screenShake.magnitude*2-screenShake.magnitude;ctx.translate(x,y)}}
+function finalExplosion(){for(let i=0;i<extraCircles.length;i++){const c=extraCircles[i];if(c.visible){setTimeout(()=>{shockwaves.push({radius:c.radius,color:c.color,maxRadius:Math.hypot(canvas.width/2,canvas.height/2),speed:RIPPLE_SPEED+5})},i*20)}}setTimeout(()=>{gameState='gameOver';setTimeout(showIntroScreen,5000)},extraCircles.length*20+500)}
+function checkWinCondition(){if(extraCircles.every(c=>!c.visible)&&gameState!=='gameOver'){finalExplosion();gameState='gameOver'}}
+function drawGameOverScreen(){ctx.save();ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);ctx.fillStyle="#fff";ctx.textAlign='center';ctx.font="bold 60px 'Exo 2', sans-serif";ctx.shadowColor="#0ff";ctx.shadowBlur=20;let wt;if(score1>score2){wt="Blue Player Wins!";ctx.shadowColor="#00f6ff"}else if(score2>score1){wt="Red Player Wins!";ctx.shadowColor="#ff0066"}else{wt="It's a Tie!"}ctx.fillText("GAME OVER",0,-20);ctx.font="bold 40px 'Exo 2', sans-serif",ctx.fillText(wt,0,40),ctx.font="20px 'Exo 2', sans-serif",ctx.shadowBlur=10,ctx.fillText("Restarting...",0,100),ctx.restore()}
 function toggleGravity(c){ball1.useGravity=c;ball2.useGravity=c;checkDisabled()}
 function toggleElasticity(c){ball1.useElasticity=c;ball2.useElasticity=c;checkDisabled()}
 function checkDisabled(){if(!ball1.useGravity&&!ball1.useElasticity){document.getElementById("speed").disabled=false}else{const e=document.getElementById("speed");e.disabled=true,e.value=Math.sqrt(ball1.dx*ball1.dx+ball1.dy*ball1.dy).toFixed(1)}}
 function updateSpeed(v){const p=parseFloat(v);ball1.dx=p;ball1.dy=p;ball2.dx=-p;ball2.dy=-p}
-function resizeCanvas(){const s=Math.min(window.innerWidth,window.innerHeight)*0.9;canvas.width=s;canvas.height=s}
+function resizeCanvas() {
+    const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+    const dpr = window.devicePixelRatio || 1;
+    gameContainer.style.width = `${size}px`;
+    gameContainer.style.height = `${size}px`;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.scale(dpr, dpr);
+}
+function updateSpeedDisplay(){speed1Display.textContent=Math.hypot(ball1.dx,ball1.dy).toFixed(1);speed2Display.textContent=Math.hypot(ball2.dx,ball2.dy).toFixed(1)}
+function startGame(){introScreen.style.animation='fade-out 0.5s forwards';initializeGame()}
+function showIntroScreen(){
+    gameState='intro';
+    introScreen.style.display = 'flex'; // Make it visible before animating
+    introScreen.style.animation='fade-in 0.5s forwards';
+    let countdown=3;
+    countdownTimer.textContent=countdown;
+    const interval=setInterval(()=>{
+        countdown--;
+        countdownTimer.textContent=countdown;
+        if(countdown===0){
+            clearInterval(interval);
+            countdownTimer.textContent="GO!";
+            setTimeout(startGame,500)
+        }
+    },1000)
+}
 
 function draw(){
     requestAnimationFrame(draw);
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const scaledWidth = canvas.width / (window.devicePixelRatio || 1);
+    const scaledHeight = canvas.height / (window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, scaledWidth, scaledHeight);
+    
     ctx.save();
-    ctx.translate(canvas.width/2,canvas.height/2);
-    if(isGameOver){
-        updateAndDrawRipples();
-        drawGameElements();
-        drawGameOverScreen();
-    } else {
+    updateAndDrawScreenShake();
+    ctx.translate(scaledWidth / 2, scaledHeight / 2);
+    
+    if(gameState === 'intro') {
+        // The canvas is clear during the intro
+    } else if (gameState === 'playing') {
+        handleEntryAnimation();
         updateCircleAnimations();
         updateBallAnimations();
         shrinkCirclesOverTime();
-        updateAndDrawRipples(); // NOUVEAU : Dessiner les ondulations en arrière-plan
+        updateAndDrawRipples();
         drawGameElements();
-        drawBall(ball1,"#00f6ff","#00f6ff");
-        drawBall(ball2,"#ff0066","#ff0066");
-        updateBall(ball1,{get value(){return score1},set value(v){score1=v}});
-        updateBall(ball2,{get value(){return score2},set value(v){score2=v}});
-        repelBalls(ball1,ball2);
+        if(entryAnimation.progress < entryAnimation.duration) {
+            updateTrails();
+        } else {
+            updateBall(ball1, ball2, {get value(){return score1},set value(v){score1=v}});
+            updateBall(ball2, ball1, {get value(){return score2},set value(v){score2=v}});
+            repelBalls(ball1,ball2);
+            updateTrails();
+            updateSpeedDisplay();
+            emitFlameParticles(ball1);
+            emitFlameParticles(ball2);
+        }
+        updateAndDrawFlames();
+        drawBall(ball1);
+        drawBall(ball2);
         for(let c of extraCircles)c.angle+=c.speed;
         checkWinCondition();
+    } else if (gameState === 'gameOver') {
+        updateAndDrawRipples();
+        drawGameElements();
+        drawGameOverScreen();
     }
     ctx.restore();
 }
 
-document.addEventListener('DOMContentLoaded',()=>{resizeCanvas();initializeGame();draw();});
+// === EVENT LISTENERS ===
+document.addEventListener('DOMContentLoaded',()=>{resizeCanvas();showIntroScreen();draw();});
 window.addEventListener('resize',resizeCanvas);
+introScreen.addEventListener('animationend', (event) => {
+    if (event.animationName === 'fade-out') {
+        introScreen.style.display = 'none';
+    }
+});
 </script>
 </body>
 </html>

@@ -29,27 +29,49 @@
     }
 
     /* --- UI Panel Styling --- */
+    .player-container {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        z-index: 10;
+    }
+    #player1Container {
+        top: 20px;
+        left: 20px;
+    }
+    #player2Container {
+        top: 20px;
+        right: 20px;
+        flex-direction: row-reverse;
+    }
+
+    .player-avatar-icon {
+        width: 120px;
+        height: 120px;
+        background: #000;
+        border-radius: 50%;
+        padding: 0;
+        box-sizing: border-box;
+        object-fit: cover;
+    }
+    .player-avatar-icon.blue {
+        border: 4px solid #00f6ff;
+        box-shadow: 0 0 20px #00f6ff;
+    }
+    .player-avatar-icon.red {
+        border: 4px solid #ff0066;
+        box-shadow: 0 0 20px #ff0066;
+    }
+
+
     .player-ui {
-      position: absolute;
       background: rgba(0, 0, 0, 0.5);
       border-radius: 10px;
       padding: 10px 15px;
-      z-index: 10;
     }
-    
-    #player1UI {
-      top: 20px;
-      left: 20px;
-      box-shadow: 0 0 10px #00f6ff;
-      text-align: left;
-    }
-
-    #player2UI {
-      top: 20px;
-      right: 20px;
-      box-shadow: 0 0 10px #ff0066;
-      text-align: right;
-    }
+    #player1UI { box-shadow: 0 0 10px #00f6ff; text-align: left; }
+    #player2UI { box-shadow: 0 0 10px #ff0066; text-align: right; }
     
     .player-title {
       font-size: 1.3em;
@@ -108,10 +130,18 @@
     #comboPopup.show { animation: combo-animation 1s forwards; }
     #introScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; flex-direction: column; z-index: 100; opacity: 0; animation: fade-in 0.5s forwards; }
     .intro-vs-container { display: flex; align-items: center; gap: 50px; }
-    .player-card { padding: 20px; border-radius: 15px; background: rgba(255, 255, 255, 0.1); text-align: center; width: 200px; }
+    .player-card { padding: 20px; border-radius: 15px; background: rgba(255, 255, 255, 0.1); text-align: center; width: 250px; }
     .player-card.blue { border: 2px solid #00f6ff; box-shadow: 0 0 20px #00f6ff; }
     .player-card.red { border: 2px solid #ff0066; box-shadow: 0 0 20px #ff0066; }
-    .player-icon { width: 80px; height: 80px; }
+    
+    .player-icon {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 15px;
+    }
+
     .player-name { font-size: 1.5em; font-weight: bold; margin-top: 10px; }
     .vs-text { font-size: 4em; font-weight: 900; color: #fff; text-shadow: 0 0 10px #fff; }
     #countdownTimer { font-size: 10em; font-weight: 900; color: #fff; margin-top: 40px; animation: countdown-pulse 1s infinite; }
@@ -126,13 +156,13 @@
 <div id="introScreen">
   <div class="intro-vs-container">
     <div class="player-card blue">
-      <svg class="player-icon" style="color: #00f6ff;" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>
-      <div class="player-name" style="color: #00f6ff; text-shadow: 0 0 10px #00f6ff;">BLUE PLAYER</div>
+      <img src="player222.png" alt="Player 222" class="player-icon">
+      <div class="player-name" style="color: #00f6ff; text-shadow: 0 0 10px #00f6ff;">PLAYER 222</div>
     </div>
     <div class="vs-text">VS</div>
     <div class="player-card red">
-      <svg class="player-icon" style="color: #ff0066;" fill="currentColor" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>
-      <div class="player-name" style="color: #ff0066; text-shadow: 0 0 10px #ff0066;">RED PLAYER</div>
+      <img src="player333.png" alt="Player 333" class="player-icon">
+      <div class="player-name" style="color: #ff0066; text-shadow: 0 0 10px #ff0066;">PLAYER 333</div>
     </div>
   </div>
   <div id="countdownTimer">3</div>
@@ -142,28 +172,34 @@
     <canvas id="canvas"></canvas>
     <div id="remainingCirclesDisplay"></div>
 
-    <!-- Player 1 (Blue) UI - Top Left of Canvas -->
-    <div id="player1UI" class="player-ui">
-        <div class="player-title" style="color:#00f6ff;">BLUE</div>
-        <div class="data-line">
-            <span>Score:</span> <span id="score1">0</span>
+    <!-- Player 1 (PLAYER 222) Container -->
+    <div id="player1Container" class="player-container">
+        <img src="player222.png" alt="Player 222 Avatar" class="player-avatar-icon blue">
+        <div id="player1UI" class="player-ui">
+            <div class="player-title" style="color:#00f6ff;">PLAYER 222</div>
+            <div class="data-line">
+                <span>Score:</span> <span id="score1">0</span>
+            </div>
+            <div class="data-line">
+                <span>Speed:</span> <span id="speed1">0.0</span>
+            </div>
+            <div id="combo1" class="comboDisplay"></div>
         </div>
-        <div class="data-line">
-            <span>Speed:</span> <span id="speed1">0.0</span>
-        </div>
-        <div id="combo1" class="comboDisplay"></div>
     </div>
 
-    <!-- Player 2 (Red) UI - Top Right of Canvas -->
-    <div id="player2UI" class="player-ui">
-        <div class="player-title" style="color:#ff0066;">RED</div>
-        <div class="data-line">
-            <span>Score:</span> <span id="score2">0</span>
+    <!-- Player 2 (PLAYER 333) Container -->
+    <div id="player2Container" class="player-container">
+        <img src="player333.png" alt="Player 333 Avatar" class="player-avatar-icon red">
+        <div id="player2UI" class="player-ui">
+            <div class="player-title" style="color:#ff0066;">PLAYER 333</div>
+            <div class="data-line">
+                <span>Score:</span> <span id="score2">0</span>
+            </div>
+            <div class="data-line">
+                <span>Speed:</span> <span id="speed2">0.0</span>
+            </div>
+            <div id="combo2" class="comboDisplay"></div>
         </div>
-        <div class="data-line">
-            <span>Speed:</span> <span id="speed2">0.0</span>
-        </div>
-        <div id="combo2" class="comboDisplay"></div>
     </div>
 </div>
 
@@ -171,7 +207,7 @@
 <div id="controlsContainer">
   <div class="control-item">
     <label for="speed">Speed:</label>
-    <input type="number" id="speed" value="3" step="0.1" onchange="updateSpeed(this.value);" disabled>
+    <input type="number" id="speed" value="5" step="0.1" onchange="updateSpeed(this.value);" disabled> <!-- MODIFIED -->
   </div>
   <div class="control-item">
     <label for="gravityToggle">Gravity</label>
@@ -232,8 +268,9 @@ function initializeGame() {
     
     updateRemainingCirclesCount(); // Initial count
 
-    ball1 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: 3, dy: 3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#00f6ff', glow: '#00f6ff', trailColor: '#00aaff' };
-    ball2 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: -3, dy: -3, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#ff0066', glow: '#ff0066', trailColor: '#dd0055' };
+    // MODIFIED: Starting speed set to 5
+    ball1 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: 5, dy: 5, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#00f6ff', glow: '#00f6ff', trailColor: '#00aaff' };
+    ball2 = { radius: 0, targetRadius: START_RADIUS, comboCount: 0, dx: -5, dy: -5, useGravity: false, useElasticity: false, gravity: 0.1, elasticity: 0.8, trail: [], flameParticles: [], color: '#ff0066', glow: '#ff0066', trailColor: '#dd0055' };
     
     ball1.startX=0; ball1.startY=0; ball1.endX=randomBallPosition(circle.radius,START_RADIUS).x; ball1.endY=randomBallPosition(circle.radius,START_RADIUS).y;
     ball2.startX=0; ball2.startY=0; ball2.endX=randomBallPosition(circle.radius,START_RADIUS).x; ball2.endY=randomBallPosition(circle.radius,START_RADIUS).y;
@@ -310,7 +347,30 @@ function triggerScreenShake(magnitude,duration){screenShake.magnitude=magnitude;
 function updateAndDrawScreenShake(){if(screenShake.duration>0){screenShake.duration--;const x=Math.random()*screenShake.magnitude*2-screenShake.magnitude;const y=Math.random()*screenShake.magnitude*2-screenShake.magnitude;ctx.translate(x,y)}}
 function finalExplosion(){for(let i=0;i<extraCircles.length;i++){const c=extraCircles[i];if(c.visible){setTimeout(()=>{shockwaves.push({radius:c.radius,color:c.color,maxRadius:Math.hypot(canvas.width/2,canvas.height/2),speed:RIPPLE_SPEED+5})},i*20)}}setTimeout(()=>{gameState='gameOver';setTimeout(showIntroScreen,5000)},extraCircles.length*20+500)}
 function checkWinCondition(){if(extraCircles.every(c=>!c.visible)&&gameState!=='gameOver'){finalExplosion();gameState='gameOver'}}
-function drawGameOverScreen(){ctx.save();ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);ctx.fillStyle="#fff";ctx.textAlign='center';ctx.font="bold 60px 'Exo 2', sans-serif";ctx.shadowColor="#0ff";ctx.shadowBlur=20;let wt;if(score1>score2){wt="Blue Player Wins!";ctx.shadowColor="#00f6ff"}else if(score2>score1){wt="Red Player Wins!";ctx.shadowColor="#ff0066"}else{wt="It's a Tie!"}ctx.fillText("GAME OVER",0,-20);ctx.font="bold 40px 'Exo 2', sans-serif",ctx.fillText(wt,0,40),ctx.font="20px 'Exo 2', sans-serif",ctx.shadowBlur=10,ctx.fillText("Restarting...",0,100),ctx.restore()}
+function drawGameOverScreen(){
+    ctx.save();
+    ctx.fillStyle="rgba(0,0,0,0.7)";
+    ctx.fillRect(-canvas.width/2,-canvas.height/2,canvas.width,canvas.height);
+    ctx.fillStyle="#fff";
+    ctx.textAlign='center';
+    ctx.font="bold 60px 'Exo 2', sans-serif";
+    ctx.shadowColor="#0ff";
+    ctx.shadowBlur=20;
+    let wt;
+    if(score1 > score2){
+        wt="PLAYER 222 WINS!";
+        ctx.shadowColor="#00f6ff";
+    } else if(score2 > score1){
+        wt="PLAYER 333 WINS!";
+        ctx.shadowColor="#ff0066";
+    } else {
+        wt="IT'S A TIE!";
+    }
+    ctx.fillText("GAME OVER",0,-20);
+    ctx.font="bold 40px 'Exo 2', sans-serif";
+    ctx.fillText(wt,0,40);
+    ctx.restore();
+}
 function toggleGravity(c){ball1.useGravity=c;ball2.useGravity=c;checkDisabled()}
 function toggleElasticity(c){ball1.useElasticity=c;ball2.useElasticity=c;checkDisabled()}
 function checkDisabled(){if(!ball1.useGravity&&!ball1.useElasticity){document.getElementById("speed").disabled=false}else{const e=document.getElementById("speed");e.disabled=true,e.value=Math.sqrt(ball1.dx*ball1.dx+ball1.dy*ball1.dy).toFixed(1)}}
